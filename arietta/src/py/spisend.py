@@ -22,7 +22,7 @@ class spibus():
 		rx_buf=addressof(read_buffer),
 		len=1,
 		delay_usecs=0,
-		speed_hz=2550000,
+		speed_hz=3500000,
 		bits_per_word=8,
 		cs_change = 0,
 	)
@@ -41,12 +41,17 @@ spibus0 = spibus("/dev/spidev32766.1")
 
 def set_led(j, r, g, b):
   doublebit = [ 
-    # uart sends the lsb first, and we invert all
-    (255-0x11), 	# 1...1...	0 0
-    (255-0x71), 	# 1...111.	0 1
-    (255-0x17), 	# 111.1...	1 0
-    (255-0x77), 	# 111.111.	1 1
+    # spi sends the msb first, and we invert all
+    0x77, 	# 111.111.	0 0
+    0x71, 	# 1...1...	0 1
+    0x17, 	# 1...111.	1 0
+    0x11, 	# 1...1...	1 1
   ]
+
+  # darkest colors
+  # gn = [ 0x77, 0x77, 0x77, 0x71,  0x77, 0x77, 0x77, 0x77,   0x77, 0x77, 0x77, 0x77 ]
+  # rd = [ 0x77, 0x77, 0x77, 0x77,  0x77, 0x77, 0x77, 0x71,   0x77, 0x77, 0x77, 0x77 ]
+  # bl = [ 0x77, 0x77, 0x77, 0x77,  0x77, 0x77, 0x77, 0x77,   0x77, 0x77, 0x77, 0x71 ]
 
   i = j * 12
 
@@ -65,26 +70,32 @@ def set_led(j, r, g, b):
   spibus0.write_buffer[i+10] = chr(doublebit[(b>>2) & 3])
   spibus0.write_buffer[i+11] = chr(doublebit[(b>>0) & 3])
 
-set_led(0, 1  , 1  , 1)
-set_led(1, 1  , 1  , 20)
-set_led(2, 1  , 1  , 30)
-set_led(3, 255, 255, 0  )
-set_led(4, 255, 0  , 0  )
-set_led(5, 0  , 255, 0  )
-set_led(6, 255, 0  , 255)
-set_led(7,   5,   5, 255)
-set_led(8,   5,   5, 255)
+rgb = [
+ [ 0 , 1 ,  0],
+ [ 1 , 1 , 10],
+ [ 1 , 1 , 30],
+ [ 55, 55,  0],
+ [ 55, 0 ,  0],
+ [ 0 , 55,  0],
+ [ 55,  0, 55],
+ [ 55,  0,  0],
+]
 
+for x in range(len(rgb)):
+  set_led(x, rgb[x][0], rgb[x][1], rgb[x][2])
 
-gn = [ 0x77, 0x77, 0x77, 0x71,  0x77, 0x77, 0x77, 0x77,   0x77, 0x77, 0x77, 0x77 ]
-rd = [ 0x77, 0x77, 0x77, 0x77,  0x77, 0x77, 0x77, 0x71,   0x77, 0x77, 0x77, 0x77 ]
-bl = [ 0x77, 0x77, 0x77, 0x77,  0x77, 0x77, 0x77, 0x77,   0x77, 0x77, 0x77, 0x71 ]
+dir=1
+x=0
+while (True):
+  spibus0.send(3*4*8)
+  set_led(x, rgb[x][0], rgb[x][1], rgb[x][2])
+  if (x <= 0) : dir = 1
+  if (x >= 7) : dir = -1
+  x += dir
+  set_led(x, 0,0,255)
+  time.sleep(0.01)
 
-for j in range(12): spibus0.write_buffer[12*0+j] = chr(gn[j])
-# for j in range(12): spibus0.write_buffer[12*1+j] = chr(bl[j])
-# for j in range(12): spibus0.write_buffer[12*2+j] = chr(rd[j])
-
-spibus0.send(3*4*9)	# nleds)
+  
 
 #Shows the 2 byte received in full duplex in hex format
 print hex(ord(spibus0.read_buffer[0]))

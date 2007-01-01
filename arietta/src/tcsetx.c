@@ -51,4 +51,5 @@ int main(int ac, char **av)
 
   // Attention: baud rate falls back to the previous stty settting, when the device is closed.
   close(fd);
+  return 0;
 }

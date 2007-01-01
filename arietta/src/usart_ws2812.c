@@ -44,7 +44,7 @@ struct ws2812 *ws2812_init(char *dev, int n_leds)
   r = ioctl(w->fd, TCSETX, &w->s);
 
   w->s.baud_base = 0;
-  w->s.custom_divisor = 5;	// should result in ca 2.3 Mhz
+  w->s.custom_divisor = 0;
   w->s.xmit_fifo_size = 0;
 
   r = ioctl(w->fd, TCGETX, &w->s);
@@ -52,7 +52,6 @@ struct ws2812 *ws2812_init(char *dev, int n_leds)
     {
       fprintf(stderr, "TCGETX r=%d, errno=%d\n", r, errno);
       fprintf(stderr, "ERROR: xmit_fifo_size=%d, (need min 256)\n", w->s.xmit_fifo_size);
-      exit(1);
     }
   fprintf(stderr, "%s: using baud=%d\n", dev, w->s.baud_base);
   fprintf(stderr, "%s: use_dma_tx=%d\n", dev, w->s.type & 1);
@@ -188,9 +187,9 @@ int main(int ac, char **av)
     {
       ws2812_send(w, 0, p1, sizeof(p1));
 fprintf(stderr, "i=%d\n", i);
-      usleep(1+500);	// sleep 1 microsecond
+      usleep(100000);	// min sleep 50 microsecond
       ws2812_send(w, 0, p2, sizeof(p2));
-      usleep(1+500);	// sleep 1 microsecond
+      usleep(100000);	// min sleep 50 microsecond
     }
 
   ws2812_fini(w); 

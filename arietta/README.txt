@@ -1,3 +1,22 @@
+			jw, Mo 1. Jan 20:46:44 CET 2007
+
+choosing usart1, usart0, spi
+----------------------------
+# We use the dts designer at http://www.acmesystems.it/pinout_arietta 
+# for guidance, what is most easy.
+# The usart's have no dma when enabled. Their buffer is 1 byte.
+# (Code is there, but whe the simple device tree entry shown below, usart1
+# is non-operational. Without dma/pdc, we get fast 1 byte writes, with enabled pdc, it is incedibly slow.
+#
+# The SPI always has its dma enabled, when chosen  http://www.acmesystems.it/pinout_arietta
+#
+# Alternative 1)
+# We have more specific instructions for the device tree, in linux-3.16.1/Documentation/devicetree/bindings/serial/atmel-usart.txt
+# demonstrating usart0 with dma. Try that.
+# 
+# Alternative 2)
+# Try SPI. 
+
 			jw, Fr 3. Okt 18:18:15 CEST 2014
 
 compile a device tree
@@ -102,7 +121,9 @@ of_get_property(np, "atmel,use-dma-tx", N
 8+9 from pin 28 
 pin 10 to LEDs
 
-ttyS2 TXD is pin 28 (aka PA5)
+ttyS2 (usart1) TXD is pin 28 (aka PA5)
+ttyS1 (usart0) TXD is pin 23 (aka PA0)
+SPI MOSI is pin 8 (aka PA22)
 
 acme-arietta-dtb
 acme-arietta-dts

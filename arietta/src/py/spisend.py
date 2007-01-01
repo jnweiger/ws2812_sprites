@@ -1,9 +1,12 @@
+#!/usr/bin/python
+
 import posix
 import struct
 from ctypes import addressof, create_string_buffer, sizeof, string_at
 from fcntl import ioctl
 from spi_ctypes import *
 import time
+
 
 class spibus():
 	fd=None
@@ -31,13 +34,37 @@ class spibus():
 		ioctl(self.fd, SPI_IOC_MESSAGE(1),addressof(self.ioctl_arg))
 
 #Open the SPI bus 0
-spibus0 = spibus("/dev/spidev32766.0")
+spibus0 = spibus("/dev/spidev32766.1")
 
-#Send two characters
-spibus0.write_buffer[0]=chr(0x55)
-spibus0.write_buffer[1]=chr(0xAA)
+#Send 24 characters
+spibus0.write_buffer[ 0]=chr(0x55)
+spibus0.write_buffer[ 1]=chr(0x55)
+spibus0.write_buffer[ 2]=chr(0x55)
+spibus0.write_buffer[ 3]=chr(0x55)
+spibus0.write_buffer[ 4]=chr(0x55)
+spibus0.write_buffer[ 5]=chr(0x55)
+spibus0.write_buffer[ 6]=chr(0x55)
+spibus0.write_buffer[ 7]=chr(0x55)
 
-spibus0.send(2)
+spibus0.write_buffer[ 8]=chr(0x33)
+spibus0.write_buffer[ 9]=chr(0x33)
+spibus0.write_buffer[10]=chr(0x33)
+spibus0.write_buffer[11]=chr(0x33)
+spibus0.write_buffer[12]=chr(0x33)
+spibus0.write_buffer[13]=chr(0x33)
+spibus0.write_buffer[14]=chr(0x33)
+spibus0.write_buffer[15]=chr(0x33)
+
+spibus0.write_buffer[16]=chr(0xAA)
+spibus0.write_buffer[17]=chr(0xAA)
+spibus0.write_buffer[18]=chr(0xAA)
+spibus0.write_buffer[19]=chr(0xAA)
+spibus0.write_buffer[20]=chr(0xAA)
+spibus0.write_buffer[21]=chr(0xAA)
+spibus0.write_buffer[22]=chr(0xAA)
+spibus0.write_buffer[23]=chr(0xAA)
+
+spibus0.send(24)
 
 #Shows the 2 byte received in full duplex in hex format
 print hex(ord(spibus0.read_buffer[0]))

@@ -5,11 +5,14 @@
  *
  * (C) 2014 juewei@fabfolk.com
  */
-#include <linux/serial.h>
-#include <asm-generic/ioctls.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
+#include <linux/serial.h>	// struct serial_struct
+#include <asm-generic/ioctls.h>	// TCGETX
+#include <sys/ioctl.h>		// ioctl()
+#include <stdlib.h>		// atol()
+#include <unistd.h>		// open()/close()
+#include <fcntl.h>		// O_RDWR
+#include <stdio.h>		// printf()
+#include <errno.h>		// errno
 
 int main(int ac, char **av)
 {

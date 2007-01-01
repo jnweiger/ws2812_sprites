@@ -31,7 +31,7 @@ struct ws2812 *ws2812_init(char *dev, int n_leds)
   struct ws2812 *w = calloc(1, sizeof(struct ws2812));
   int r;
 
-  w->fd = open(dev, O_RDWR);
+  w->fd = open(dev, O_RDWR|O_NOCTTY|O_NONBLOCK);
 
   // set 2.55Mhz bit clock, 0.417us
   // set 4.255Mhz bit clock, 0.235us
@@ -161,7 +161,9 @@ void ws2812_send(struct ws2812 *w, int off, char *rgb, int len)
 
 int main(int ac, char **av)
 {
-  struct ws2812 * w = ws2812_init("/dev/ttyS2", 7);
+  char *dev = "/dev/ttyS1";
+  if (ac > 1) dev = av[1];
+  struct ws2812 * w = ws2812_init(dev, 7);
   int i;
 
   static char p1[] = 

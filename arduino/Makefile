@@ -1,5 +1,4 @@
-#PRG            = blink
-PRG            = ws2812
+PRG            = ws2812_sprites
 #PRG            = ws2812_pwm
 BURNER         = avr109
 BURNERDEV      = /dev/ttyACM0

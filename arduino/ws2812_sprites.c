@@ -8,9 +8,15 @@
 //  PD0 <D3>  aka OC0B 
 //  PD5 <PD5> green TXLED
 //  PB0 <D14> yellow RXLED
-//  PF0 <A5>  out bitbang WS2812
+//  PF0 <A5>  gn, out bitbang WS2812, far half
+//  PF1 <A4>  ye, out bitbang WS2812, near half
 //  PC7 <D13> far switch
 //  PD1 <D2>  near switch
+//
+// Button pins: 
+// White: Switch
+// Brown: GND
+// green/yellow: LEDs
 //
 // http://www.mikrocontroller.net/topic/271872
 // http://www.aliexpress.com/item/WS2811IC-Digital-RGB-led-strip-5m-input-12V-300pcs-IC-300pcs-SMD5050-led-IP65-waterproof-free/672648273.html
@@ -35,6 +41,8 @@
 // 2013-04-03, dual channel mode added and optimized. SEND_BIT_S2Dnm is the winner.
 //             Second channel repeats a portion of the first for testing.
 //             Cost 1.25:1, adjusted vel's to compensate.
+// 2013-05-04, soft flash on far button. Direction change on near button.
+//             sprite->scale added. #defined BLAUE_NACHT added.
 //
 // 100 LEDS, at 5V:
 // 	  1% white  0.2A
@@ -57,9 +65,12 @@
 #include <avr/interrupt.h>		// sei()
 #include <string.h>			// memset()
 
-#define NSPRITES	10
+#define NSPRITES	20
 #define LED2POS(n)	(((int32_t)(n))<<16)
 #define POS2LED(n)	(((int32_t)(n))>>16)	// signed rshift! negative pos are valid!
+
+#define BLAUE_NACHT	1
+#define MICROSTEPS	8		// 8, 4, 2, 1 suppported.
 
 #define VEL_SCALE(n)	(((int32_t)(n))*256)
 
@@ -280,6 +291,7 @@ struct sprite
 #define SPRITE_F_INF_MASS  0x10		// this sprite 'wins' collisions.
   uint8_t flags;	// wrap, collision layer
   uint8_t len;		// how many pixels the sprite is wide
+  uint8_t scale;	// integer upscale. Use 0 to hide the sprite.
   uint8_t *rgb;		// 3*len bytes of R,G,B data
   int32_t pos;		// current position of the sprite 
   int16_t vel;		// current velocity of the sprite
@@ -291,8 +303,9 @@ void sprite_wraparound(struct sprite *s, uint8_t speed)
 {
   // Tricky: can have a sprite half and half on the edges
   // FIXME: The wrap is not perfectly smooth. Suspect an off-by-one error somewhere.
-  s->pos += (int32_t)s->vel * (1<<speed);
-  if (s->vel < 0)
+  int16_t svel = (BUTN_PIN & BUTN_BITS) ? s->vel : -s->vel;
+  s->pos += (int32_t)svel * (1<<speed);
+  if (svel < 0)
     {
       if (s->pos < 0)
         {
@@ -310,9 +323,10 @@ void sprite_wraparound(struct sprite *s, uint8_t speed)
 
 void sprite_ping_pong(struct sprite *s, uint8_t speed)
 {
-  s->pos += (int32_t)s->vel * (1<<speed);
+  int16_t svel = (BUTN_PIN & BUTN_BITS) ? s->vel : -s->vel;
+  s->pos += (int32_t)svel * (1<<speed);
 
-  if (s->vel < 0)
+  if (svel < 0)
     {
       if (s->pos < 0)
         {
@@ -361,19 +375,28 @@ void render_frame(uint8_t *buffer, uint8_t downshift, int16_t spread)
       uint8_t *pb = buffer+3*POS2LED(s->pos+spread_pos);
       uint8_t *be = buffer+3*WS2812_NLEDS;
       uint8_t *ps = s->rgb;
-      for (l = s->len*3; l > 0; l--)
+      for (l = s->len; l > 0; l--)
         {
-	  // add light quantity of this sprite, clipping at bright white
-	  uint16_t v = (uint16_t)*pb + (*ps++ >> downshift);
-	  if (v > 255) v = 255;		// clip at white
-	  if (pb < buffer) 		// safety first
-	    pb++;
-	  else if (pb < be) 		// safety last
-	    *pb++ = v;	
-	  else
-	    pb++;
-	  if (pb == be && (s->flags & SPRITE_F_WRAP)) 
-	    pb = buffer;
+	  uint8_t rep = s->scale;
+	  while (rep-- > 0)
+	    {
+	      uint8_t colors = 0;
+	      while (colors++ < 3)
+		{
+		  // add light quantity of this sprite, clipping at bright white
+		  uint16_t v = (uint16_t)*pb + (*ps++ >> downshift);
+		  if (v > 255) v = 255;		// clip at white
+		  if (pb < buffer) 		// safety first
+		    pb++;
+		  else if (pb < be) 		// safety last
+		    *pb++ = v;	
+		  else
+		    pb++;
+		  if (pb == be && (s->flags & SPRITE_F_WRAP)) 
+		    pb = buffer;
+		}
+	      if (rep) ps -= 3;
+	    }
 	}
     }
 }
@@ -394,11 +417,17 @@ int main()
   RXLED_DDR  |= RXLED_BITS;	// output
   WS2812_DDR |= WS2812_MASK;	// output
 
+  uint8_t flash = 0;
+  uint8_t i;
   uint8_t *p;
   // create a sprite
   uint8_t flame_sprite[3*13];
   uint8_t green_puck[3*6];
   uint8_t blue_puck[3*6];
+#ifdef BLAUE_NACHT
+  uint8_t blue_wave[3*32];
+  uint8_t yellow_puck[3*8];
+#endif
   uint8_t red_puck[3*6];
   p = flame_sprite;
 	SETpRE3; SETpRE2; SETpRE1; SETpRE; SETpOR; SETpYE; SETpWH; 
@@ -409,15 +438,83 @@ int main()
   	SETpBL2; SETpBL1; SETpBL; SETpBL; SETpBL1; SETpBL2;
   p = red_puck;
   	SETpRE2; SETpRE1; SETpRE; SETpRE; SETpRE1; SETpRE2;
+  p = yellow_puck;
+  	SETpYE3; SETpYE2; SETpYE1; SETpYE; SETpYE; SETpYE1; SETpYE2; SETpYE3;
+
+#ifdef BLAUE_NACHT
+  p = blue_wave; 
+  for (i = 1; i <= 8; i++) { SET_RGB(p, 0, 0, (uint16_t)255*i>>3); }
+  for (i = 1; i <= 8; i++) { SET_RGB(p, (uint16_t)47*i>>3, (uint16_t)63*i>>3, 255); }
+  for (i = 8; i >= 1; i--) { SET_RGB(p, (uint16_t)47*i>>3, (uint16_t)63*i>>3, 255); }
+  for (i = 8; i >= 1; i--) { SET_RGB(p, 0, 0, (uint16_t)255*i>>3); }
+  sprite[nsprites].len = 32;
+  sprite[nsprites].scale = 3;
+  sprite[nsprites].rgb = blue_wave;
+  sprite[nsprites].pos = LED2POS(11);
+  sprite[nsprites].vel = 81;
+  sprite[nsprites].move = sprite_wraparound;
+  sprite[nsprites].flags = SPRITE_F_WRAP;
+  nsprites++;
+
+  sprite[nsprites].len = 32;
+  sprite[nsprites].scale = 1;
+  sprite[nsprites].rgb = blue_wave;
+  sprite[nsprites].pos = LED2POS(55);
+  sprite[nsprites].vel = 111;
+  sprite[nsprites].move = sprite_wraparound;
+  sprite[nsprites].flags = SPRITE_F_WRAP;
+  nsprites++;
+
+  sprite[nsprites].len = 32;
+  sprite[nsprites].scale = 1;
+  sprite[nsprites].rgb = blue_wave;
+  sprite[nsprites].pos = LED2POS(11);
+  sprite[nsprites].vel = 120;
+  sprite[nsprites].move = sprite_ping_pong;
+  sprite[nsprites].flags = 0;
+  nsprites++;
+
+  sprite[nsprites].len = 6;
+  sprite[nsprites].scale = 1;
+  sprite[nsprites].rgb = blue_puck;
+  sprite[nsprites].pos = LED2POS(111);
+  sprite[nsprites].vel = 520;
+  sprite[nsprites].move = sprite_wraparound;
+  sprite[nsprites].flags = SPRITE_F_WRAP;
+  nsprites++;
+
+  sprite[nsprites].len = 6;
+  sprite[nsprites].scale = 2;
+  sprite[nsprites].rgb = green_puck;
+  sprite[nsprites].pos = LED2POS(111);
+  sprite[nsprites].vel = 55;
+  sprite[nsprites].move = sprite_wraparound;
+  sprite[nsprites].flags = SPRITE_F_WRAP;
+  nsprites++;
+
+  sprite[nsprites].len = 8;
+  sprite[nsprites].scale = 1;
+  sprite[nsprites].rgb = yellow_puck;
+  sprite[nsprites].pos = LED2POS(211);
+  sprite[nsprites].vel = 30;
+  sprite[nsprites].move = sprite_wraparound;
+  sprite[nsprites].flags = SPRITE_F_WRAP;
+  nsprites++;
+
+#else
+
   sprite[nsprites].len = 13;
+  sprite[nsprites].scale = 1;	// 10;
   sprite[nsprites].rgb = flame_sprite;
   sprite[nsprites].pos = LED2POS(33);
   sprite[nsprites].vel = 840;
   sprite[nsprites].move = sprite_wraparound;
   sprite[nsprites].flags = SPRITE_F_WRAP;
   nsprites++;
+#endif
 
   sprite[nsprites].len = 6;
+  sprite[nsprites].scale = 1;
   sprite[nsprites].rgb = blue_puck;
   sprite[nsprites].pos = LED2POS(11);
   sprite[nsprites].vel = 120;
@@ -426,6 +523,7 @@ int main()
   nsprites++;
 
   sprite[nsprites].len = 6;
+  sprite[nsprites].scale = 1;
   sprite[nsprites].rgb = green_puck;
   sprite[nsprites].pos = LED2POS(1);
   sprite[nsprites].vel = 144;
@@ -434,14 +532,16 @@ int main()
   nsprites++;
 
   sprite[nsprites].len = 6;
+  sprite[nsprites].scale = 1;
   sprite[nsprites].rgb = red_puck;
   sprite[nsprites].pos = LED2POS(22);
-  sprite[nsprites].vel = 60;
+  sprite[nsprites].vel = 24;
   sprite[nsprites].move = sprite_wraparound;
   sprite[nsprites].flags = SPRITE_F_WRAP;
   nsprites++;
 
   sprite[nsprites].len = 1;
+  sprite[nsprites].scale = 1;
   sprite[nsprites].rgb = flame_sprite+3;
   sprite[nsprites].pos = LED2POS(33);
   sprite[nsprites].vel = 18;	// speed 18, used for the red roundtrip timings.
@@ -451,10 +551,13 @@ int main()
 
   for (;;)
     {
-      uint8_t speed = 5;		// 7 = full speed, 0 = slowest
+      uint8_t speed = 6;		// 7 = full speed, 0 = slowest
       if (!(BUTH_PIN & BUTH_BITS)) 	// slow simulator while BUT pressed
         speed = 0;
 
+#if MICROSTEPS == 8
+      // with a total of 8 render_frame microsteps the
+      // animation looks smooth! 4 is not quite enough...
       simulate_world(speed);
       render_frame(rgb, 3, 0);
       simulate_world(speed);
@@ -464,9 +567,6 @@ int main()
       simulate_world(speed);
       render_frame(rgb, 3, 3);
 
-#if 1
-      // with a total of 8 render_frame microsteps the
-      // animation looks smooth! 4 is not quite enough...
       simulate_world(speed);
       render_frame(rgb, 3, 4);
       simulate_world(speed);
@@ -475,14 +575,38 @@ int main()
       render_frame(rgb, 3, 6);
       simulate_world(speed);
       render_frame(rgb, 3, 7);
+#else
+# if MICROSTEPS == 4
+      simulate_world(speed);
+      render_frame(rgb, 2, 0);
+      simulate_world(speed);
+      render_frame(rgb, 2, 1);
+      simulate_world(speed);
+      render_frame(rgb, 2, 2);
+      simulate_world(speed);
+      render_frame(rgb, 2, 3);
+# else
+#  if MICROSTEPS == 2
+      simulate_world(speed);
+      render_frame(rgb, 1, 0);
+      simulate_world(speed);
+      render_frame(rgb, 1, 1);
+#  else
+      simulate_world(speed);
+      render_frame(rgb, 0, 0);
+#  endif
+# endif
 #endif
 
       // dual channel mode by calling send_leds() twice: 41sec red roundtrip
       // FIXME: use offset for b instead of rgb+0
       send_leds(rgb, WS2812_NLEDSa, rgb+0, WS2812_NLEDSb);
-      memset(rgb, (BUTF_PIN & BUTF_BITS)?8:255, 3*WS2812_NLEDS);	// background
-      if (!(BUTN_PIN & BUTN_BITS))  { p = rgb+0; SETpOR2; }
-      if (!(BUTF_PIN & BUTF_BITS))  { p = rgb+3*WS2812_NLEDS-3; SETpCY2; }
+      if (!(BUTF_PIN & BUTF_BITS)) flash = 255;
+      else flash = (uint16_t)(flash*15)>>4;
+      if (flash < 1) flash = 1;
+      memset(rgb, flash, 3*WS2812_NLEDS);	// background
+      // if (!(BUTN_PIN & BUTN_BITS))  { p = rgb+0; SETpOR2; }
+      // if (!(BUTF_PIN & BUTF_BITS))  { p = rgb+3*WS2812_NLEDS-3; SETpCY2; }
     }
 }
 

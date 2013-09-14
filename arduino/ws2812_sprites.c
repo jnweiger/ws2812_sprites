@@ -82,6 +82,7 @@
 #define MICROSTEPS	4		// 8, 4, 2, 1 suppported.
 
 #define VEL_SCALE(n)	(((int32_t)(n))*256)
+#define SPEED		(1<<5)		// 7 max, 1 min
 
 #ifndef PB0
 # define PB0 0
@@ -359,7 +360,7 @@ void sprite_wraparound(struct sprite *s, uint8_t speed)
   // Tricky: can have a sprite half and half on the edges
   // FIXME: The wrap is not perfectly smooth. Suspect an off-by-one error somewhere.
   int16_t svel = (BUTN_PIN & BUTN_BITS) ? s->vel : -s->vel;
-  s->pos += (int32_t)svel * (1<<speed);
+  s->pos += (int32_t)svel * SPEED;
   if (svel < 0)
     {
       if (s->pos < 0)
@@ -379,7 +380,7 @@ void sprite_wraparound(struct sprite *s, uint8_t speed)
 void sprite_ping_pong(struct sprite *s, uint8_t speed)
 {
   int16_t svel = (BUTN_PIN & BUTN_BITS) ? s->vel : -s->vel;
-  s->pos += (int32_t)svel * (1<<speed);
+  s->pos += (int32_t)svel * SPEED;
 
   if (svel < 0)
     {
@@ -561,7 +562,7 @@ int main()
 #else
 
   sprite[nsprites].len = 13;
-  sprite[nsprites].scale = 5;	// 10;
+  sprite[nsprites].scale = 2;	// 10;
   sprite[nsprites].rgb = flame_sprite;
   sprite[nsprites].pos = LED2POS(33);
   sprite[nsprites].vel = 840;

@@ -34,6 +34,9 @@ upload burn: all
 	@python -c 'import time; time.sleep(.1)'
 	avrdude -c $(BURNER) -u -p $(MCU_TARGET) -P ${BURNERDEV} -U flash:w:$(PRG).hex
 
+arduino: all
+	avrdude -c arduino -u -p $(MCU_TARGET) -P /dev/ttyUSB0 -b 115200 -D -U flash:w:$(PRG).hex
+
 $(PRG).elf: $(OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 

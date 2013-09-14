@@ -79,9 +79,19 @@
 
 #define ATMEGA328P	1		// 0, for original leonardo mega32u4
 #define BLAUE_NACHT	1
-#define MICROSTEPS	8		// 8, 4, 2, 1 suppported.
+#define MICROSTEPS	4		// 8, 4, 2, 1 suppported.
 
 #define VEL_SCALE(n)	(((int32_t)(n))*256)
+
+#ifndef PB0
+# define PB0 0
+# define PB1 1
+# define PB2 2
+# define PB3 3
+# define PB4 4
+# define PB5 5
+# define PB6 6
+#endif
 
 #if ATMEGA328P
 #define BUTH_PORT	PORTB
@@ -248,7 +258,7 @@ void send_leds(uint8_t *buffer, uint16_t numleds, uint8_t *buffer2, uint16_t num
       uint8_t bit;
       for (bit = 0; bit < 8; bit++)
         {
-#if 1	// DUAL_CHAIN				
+#if 0	// DUAL_CHAIN				
 	  // 30sec red roundtrip with SEND_BIT_S2Dnm;
 	  // 33sec red roundtrip with SEND_BIT_S2D(n,m);
 	  if (val & 0b10000000)
@@ -471,9 +481,9 @@ int main()
   uint8_t flame_sprite[3*13];
   uint8_t green_puck[3*6];
   uint8_t blue_puck[3*6];
-#ifdef BLAUE_NACHT
   uint8_t blue_wave[3*32];
   uint8_t yellow_puck[3*8];
+#ifdef BLAUE_NACHT
 #endif
   uint8_t red_puck[3*6];
   p = flame_sprite;
@@ -488,12 +498,12 @@ int main()
   p = yellow_puck;
   	SETpYE3; SETpYE2; SETpYE1; SETpYE; SETpYE; SETpYE1; SETpYE2; SETpYE3;
 
-#ifdef BLAUE_NACHT
   p = blue_wave; 
   for (i = 1; i <= 8; i++) { SET_RGB(p, 0, 0, (uint16_t)255*i>>3); }
   for (i = 1; i <= 8; i++) { SET_RGB(p, (uint16_t)47*i>>3, (uint16_t)63*i>>3, 255); }
   for (i = 8; i >= 1; i--) { SET_RGB(p, (uint16_t)47*i>>3, (uint16_t)63*i>>3, 255); }
   for (i = 8; i >= 1; i--) { SET_RGB(p, 0, 0, (uint16_t)255*i>>3); }
+#ifdef BLAUE_NACHT
   sprite[nsprites].len = 32;
   sprite[nsprites].scale = 3;
   sprite[nsprites].rgb = blue_wave;
@@ -551,10 +561,19 @@ int main()
 #else
 
   sprite[nsprites].len = 13;
-  sprite[nsprites].scale = 1;	// 10;
+  sprite[nsprites].scale = 5;	// 10;
   sprite[nsprites].rgb = flame_sprite;
   sprite[nsprites].pos = LED2POS(33);
   sprite[nsprites].vel = 840;
+  sprite[nsprites].move = sprite_wraparound;
+  sprite[nsprites].flags = SPRITE_F_WRAP;
+  nsprites++;
+
+  sprite[nsprites].len = 32;
+  sprite[nsprites].scale = 1;
+  sprite[nsprites].rgb = blue_wave;
+  sprite[nsprites].pos = LED2POS(55);
+  sprite[nsprites].vel = 111;
   sprite[nsprites].move = sprite_wraparound;
   sprite[nsprites].flags = SPRITE_F_WRAP;
   nsprites++;

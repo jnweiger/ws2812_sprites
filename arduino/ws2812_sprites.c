@@ -13,6 +13,14 @@
 //  PC7 <D13> far switch
 //  PD1 <D2>  near switch
 //
+// atmega328p
+//  PB0 <D8>   gn, out bitbang WS2812, far half
+//  PB1 <D9>   ye, out bitbang WS2812, near half
+//  PB2 <D10>  far switch
+//  PB3 <D11>  near switch
+//  PB4 <D12>  green TXLED
+//  PB5 <D13>  yellow RXLED
+//
 // Button pins: 
 // White: Switch
 // Brown: GND
@@ -69,42 +77,77 @@
 #define LED2POS(n)	(((int32_t)(n))<<16)
 #define POS2LED(n)	(((int32_t)(n))>>16)	// signed rshift! negative pos are valid!
 
+#define ATMEGA328P	1		// 0, for original leonardo mega32u4
 #define BLAUE_NACHT	1
 #define MICROSTEPS	8		// 8, 4, 2, 1 suppported.
 
 #define VEL_SCALE(n)	(((int32_t)(n))*256)
 
-#define BUTH_PORT	PORTE
-#define BUTH_PIN	PINE
-#define BUTH_DDR	DDRE
-#define BUTH_BITS	(1<<PE2)
+#if ATMEGA328P
+#define BUTH_PORT	PORTB
+#define BUTH_PIN	PINB
+#define BUTH_DDR	DDRB
+#define BUTH_BITS	(1<<PB6)
 
-#define BUTN_PORT	PORTD
-#define BUTN_PIN	PIND
-#define BUTN_DDR	DDRD
-#define BUTN_BITS	(1<<PD1)
+#define BUTN_PORT	PORTB
+#define BUTN_PIN	PINB
+#define BUTN_DDR	DDRB
+#define BUTN_BITS	(1<<PB3)
 
-#define BUTF_PORT	PORTC
-#define BUTF_PIN	PINC
-#define BUTF_DDR	DDRC
-#define BUTF_BITS	(1<<PC7)
+#define BUTF_PORT	PORTB
+#define BUTF_PIN	PINB
+#define BUTF_DDR	DDRB
+#define BUTF_BITS	(1<<PB2)
 
-#define TXLED_PORT 	PORTD
-#define TXLED_DDR  	DDRD
-#define TXLED_BITS	(1<<PD5)
+#define TXLED_PORT 	PORTB
+#define TXLED_DDR  	DDRB
+#define TXLED_BITS	(1<<PB4)
 
 #define RXLED_PORT 	PORTB
 #define RXLED_DDR  	DDRB
-#define RXLED_BITS	(1<<PB1)
+#define RXLED_BITS	(1<<PB5)
 
-#define WS2812_PORT 	PORTF
-#define WS2812_DDR  	DDRF
-#define WS2812_BITS  	(1<<PF0)	// Arduino A5
-#define WS2812_BITS2  	(1<<PF1)	// Arduino A4
+#define WS2812_PORT 	PORTB
+#define WS2812_DDR  	DDRB
+#define WS2812_BITS  	(1<<PB0)	// Arduino A5
+#define WS2812_BITS2  	(1<<PB1)	// Arduino A4
 #define WS2812_MASK 	(WS2812_BITS | WS2812_BITS2)
 #define WS2812_NLEDS	240	// FIXMES: add offset for b
 #define WS2812_NLEDSa	240
 #define WS2812_NLEDSb	234
+#else
+# define BUTH_PORT	PORTE
+# define BUTH_PIN	PINE
+# define BUTH_DDR	DDRE
+# define BUTH_BITS	(1<<PE2)
+
+# define BUTN_PORT	PORTD
+# define BUTN_PIN	PIND
+# define BUTN_DDR	DDRD
+# define BUTN_BITS	(1<<PD1)
+
+# define BUTF_PORT	PORTC
+# define BUTF_PIN	PINC
+# define BUTF_DDR	DDRC
+# define BUTF_BITS	(1<<PC7)
+
+# define TXLED_PORT 	PORTD
+# define TXLED_DDR  	DDRD
+# define TXLED_BITS	(1<<PD5)
+
+# define RXLED_PORT 	PORTB
+# define RXLED_DDR  	DDRB
+# define RXLED_BITS	(1<<PB1)
+
+# define WS2812_PORT 	PORTF
+# define WS2812_DDR  	DDRF
+# define WS2812_BITS  	(1<<PF0)	// Arduino A5
+# define WS2812_BITS2  	(1<<PF1)	// Arduino A4
+# define WS2812_MASK 	(WS2812_BITS | WS2812_BITS2)
+# define WS2812_NLEDS	240	// FIXMES: add offset for b
+# define WS2812_NLEDSa	240
+# define WS2812_NLEDSb	234
+#endif
 
 #define ON   WS2812_PORT |=  WS2812_BITS		// arduino A5
 #define OFF  WS2812_PORT &= ~WS2812_BITS		// 2 #clocks: sbi(), cbi()
@@ -232,6 +275,7 @@ void send_leds(uint8_t *buffer, uint16_t numleds, uint8_t *buffer2, uint16_t num
   // _delay_us(50);
 }
 
+#if !ATMEGA328P
 static void inline fixup_bootloader()
 {
   // BUG ALERT: the default bootloader of 
@@ -246,6 +290,7 @@ static void inline fixup_bootloader()
   PORTB &= ~0x01;	// turn off forgotten RXLED
   PORTD &= ~0x20;	// turn off forgotten TXLED
 }
+#endif
 
 uint8_t rgb[WS2812_NLEDS * 3];
 uint8_t refresh_hz;
@@ -403,7 +448,9 @@ void render_frame(uint8_t *buffer, uint8_t downshift, int16_t spread)
 
 int main()
 {
+#if !ATMEGA328P
   fixup_bootloader();
+#endif
   // ws2812_refresh(75);
 
   BUTH_DDR   &= ~(BUTH_BITS);	// input

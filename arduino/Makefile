@@ -3,7 +3,9 @@ PRG            = ws2812_sprites
 BURNER         = avr109
 BURNERDEV      = /dev/ttyACM0
 OBJ            = $(PRG).o
+# define ATMEGA328P 0
 # MCU_TARGET     = atmega32u4
+# define ATMEGA328P 1
 MCU_TARGET     = atmega328p
 
 OPTIMIZE       = -O2

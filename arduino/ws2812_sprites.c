@@ -78,11 +78,10 @@
 #define POS2LED(n)	(((int32_t)(n))>>16)	// signed rshift! negative pos are valid!
 
 #define ATMEGA328P	1		// 0, for original leonardo mega32u4
-#define BLAUE_NACHT	1
-#define MICROSTEPS	4		// 8, 4, 2, 1 suppported.
+// #define BLAUE_NACHT	1		// comment out, to use the normel code.
+#define MICROSTEPS	8		// 8, 4, 2, 1 suppported.
 
-#define VEL_SCALE(n)	(((int32_t)(n))*256)
-#define SPEED		(1<<5)		// 7 max, 1 min
+#define SPEED_SCALE	(1<<5)		// 7 max, 1 min, (define this to overridde BUTH)
 
 #ifndef PB0
 # define PB0 0
@@ -126,7 +125,9 @@
 #define WS2812_NLEDS	240	// FIXMES: add offset for b
 #define WS2812_NLEDSa	240
 #define WS2812_NLEDSb	234
+
 #else
+
 # define BUTH_PORT	PORTE
 # define BUTH_PIN	PINE
 # define BUTH_DDR	DDRE
@@ -360,7 +361,11 @@ void sprite_wraparound(struct sprite *s, uint8_t speed)
   // Tricky: can have a sprite half and half on the edges
   // FIXME: The wrap is not perfectly smooth. Suspect an off-by-one error somewhere.
   int16_t svel = (BUTN_PIN & BUTN_BITS) ? s->vel : -s->vel;
-  s->pos += (int32_t)svel * SPEED;
+#ifdef SPEED_SCALE
+  s->pos += (int32_t)svel * SPEED_SCALE;
+#else
+  s->pos += (int32_t)svel * speed;
+#endif
   if (svel < 0)
     {
       if (s->pos < 0)
@@ -618,9 +623,10 @@ int main()
 
   for (;;)
     {
-      uint8_t speed = 6;		// 7 = full speed, 0 = slowest
+      uint8_t speed = 6;		// 7 = full speed, 0 = slowest, FIXME: unused.
+
       if (!(BUTH_PIN & BUTH_BITS)) 	// slow simulator while BUT pressed
-        speed = 0;
+        speed = 0;			// CAUTION: it crawls, when the pullup fails.
 
 #if MICROSTEPS == 8
       // with a total of 8 render_frame microsteps the

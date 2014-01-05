@@ -41,6 +41,7 @@ Upload and install the built binary package
      Configuring ws2812_sprites.
 
 Alternatively use the upload.sh script, which takes some shortcuts ...
+
     vi package/ws2812_sprites/src/ws2812_sprites.c
     ./upload.sh
     

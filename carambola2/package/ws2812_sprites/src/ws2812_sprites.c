@@ -26,10 +26,22 @@
 // 	100% magenta 2.2A 
 //
 // 2014-01-04, jw -- Porting the arduino code to carambola
+// 2014-01-06, jw -- Userland bit banging has unreliable
+//		     timing. That was to be expected.
 
 
 #include <stdio.h>
+#include <string.h>	// memset()
+#include <unistd.h>	// usleep()
 #include "mmio.h"
+
+#define GPIO_RANGE 0x30
+#define GPIO_BASE 0x18040000
+#define GPIO_OE   0x00000000
+#define GPIO_IN   0x00000004
+#define GPIO_OUT  0x00000008
+#define GPIO_SET  0x0000000C
+#define GPIO_CLR  0x00000010
 
 #define NSPRITES	20
 #define LED2POS(n)	(((int32_t)(n))<<16)
@@ -61,7 +73,7 @@ struct sprite
 
 struct world
 {
-# define WS2812_NLEDS	240	// FIXMES: add offset for b
+# define WS2812_NLEDS	240
   uint8_t speed;
   uint8_t reverse;
   uint8_t nsprites;
@@ -337,8 +349,8 @@ void render_frame(struct world *w, uint8_t downshift, int16_t spread)
     {
       uint8_t l;
       struct sprite *s = w->sprite+i;
-      uint8_t *pb = w->buffer+3*POS2LED(s->pos+spread_pos);
-      uint8_t *be = w->buffer+3*WS2812_NLEDS;
+      uint8_t *pb = w->rgb+3*POS2LED(s->pos+spread_pos);
+      uint8_t *be = w->rgb+3*WS2812_NLEDS;
       uint8_t *ps = s->rgb;
       for (l = s->len; l > 0; l--)
         {
@@ -351,14 +363,14 @@ void render_frame(struct world *w, uint8_t downshift, int16_t spread)
 		  // add light quantity of this sprite, clipping at bright white
 		  uint16_t v = (uint16_t)*pb + (*ps++ >> downshift);
 		  if (v > 255) v = 255;		// clip at white
-		  if (pb < w->buffer) 		// safety first
+		  if (pb < w->rgb) 		// safety first
 		    pb++;
 		  else if (pb < be) 		// safety last
 		    *pb++ = v;	
 		  else
 		    pb++;
 		  if (pb == be && (s->flags & SPRITE_F_WRAP)) 
-		    pb = w->buffer;
+		    pb = w->rgb;
 		}
 	      if (rep) ps -= 3;
 	    }
@@ -413,14 +425,27 @@ static void simulate_render(struct world * w)
 }
 
 
-static inline send_bit(uint8_t on)
+static inline send_bit(struct mmio *io, uint8_t on)
 {
-  :-( 
-  not implemented.
+  int i;
+  if (on)
+    {
+      // repeat bit high for 0.7us
+      for (i = 11; i > 0; i--) mmio_writel(io, GPIO_SET, (1L<<23));
+      // repeat bit low for 0.6us
+      for (i = 9; i > 0; i--) mmio_writel(io, GPIO_CLR, (1L<<23));
+    }
+  else
+    {
+      // repeat bit high for 0.35us
+      for (i = 5; i > 0; i--) mmio_writel(io, GPIO_SET, (1L<<23));
+      // repeat bit low for 0.8us
+      for (i = 12; i > 0; i--) mmio_writel(io, GPIO_CLR, (1L<<23));
+    }
 }
 
 // uint8_t buffer[3*numleds];
-void send_leds(uint8_t *buffer, uint16_t numleds)
+void send_leds(struct mmio *io, uint8_t *buffer, uint16_t numleds)
 {
   int16_t i = numleds*3;
   for (; i >=0; i--)
@@ -430,11 +455,11 @@ void send_leds(uint8_t *buffer, uint16_t numleds)
       uint8_t bit;
       for (bit = 0; bit < 8; bit++)
         {
-	  send_bit(val & 0b10000000);	// 25sec red roundtrip
+	  send_bit(io, val & 0b10000000);	// 25sec red roundtrip
 	  val <<= 1;
 	}
     }
-  _delay_us(50);
+  usleep(50);
 }
 
 
@@ -448,16 +473,6 @@ int main(int argc, char **argv)
   struct world world;
   struct mmio_options mo;
 
-  unsigned long tbase = 15500000UL;
-  if (argc > 1) tbase = strtoul(argv[1], NULL, 0);
-
-#define GPIO_RANGE 0x30
-#define GPIO_BASE 0x18040000
-#define GPIO_OE   0x00000000
-#define GPIO_IN   0x00000004
-#define GPIO_OUT  0x00000008
-#define GPIO_SET  0x0000000C
-#define GPIO_CLR  0x00000010
 
 // AR9331.pdf p65 
 // GPIO0  green led
@@ -469,12 +484,42 @@ int main(int argc, char **argv)
   memset(&mo, 0, sizeof(mo));
   mo.io.range = 1;
   mmio_map(&mo.io, GPIO_BASE, GPIO_RANGE);
+  uint32_t bits = mmio_readl(&mo.io, GPIO_OE);
+  bits |= (1<<23)|(1<<21);	// switch GPIO21 and GPIO23 to output mode.
+  mmio_writel(&mo.io, GPIO_OE, bits);
+
+  // try to trick the scheduler...
+  int i;
+  for (i = 15*200; i>0; i--) mmio_writel(&mo.io, GPIO_CLR, (1L<<23));
+
+  if (argc > 3)
+    {
+      uint8_t *p = world.rgb;
+      while (argc > 3)
+	{
+	  int r = strtoul(argv[1], NULL, 0);
+	  int g = strtoul(argv[2], NULL, 0);
+	  int b = strtoul(argv[3], NULL, 0);
+	  argv += 3;
+	  argc -= 3;
+	  printf("%d %d %d\n", r, g, b);
+	  *p++ = r;
+	  *p++ = g;
+	  *p++ = b;
+	}
+      mmio_writel(&mo.io, GPIO_SET, (1L<<21));
+      memset(world.rgb, 0, 3*WS2812_NLEDS);	// background 0 == all off
+      send_leds(&mo.io, world.rgb, p-world.rgb);
+      mmio_writel(&mo.io, GPIO_CLR, (1L<<21));
+      exit(0);
+    }
 
   world.speed = SPEED_SCALE;
   world.reverse = 0;
   world.nsprites = 0;
 
-  create_sprites();
+  create_sprites(&world);
+  uint8_t toggle = 1;
   for (;;)
     {
       if (mmio_readl(&mo.io, GPIO_IN) & (1<<11))
@@ -484,10 +529,15 @@ int main(int argc, char **argv)
 
       simulate_render(&world);
 
-      send_leds(world.rgb, WS2812_NLEDS);
-      memset(world.rgb, 1, 3*WS2812_NLEDS);	// background
+      send_leds(&mo.io, world.rgb, WS2812_NLEDS);
+      memset(world.rgb, 1, 3*WS2812_NLEDS);	// background 1 == almost off
+
+      // toggle GPIO21 on every loop
+      if (toggle) mmio_writel(&mo.io, GPIO_SET, (1L<<21));
+      else mmio_writel(&mo.io, GPIO_CLR, (1L<<21));
+      toggle = 1 - toggle;
     }
-  
+
 #if 0
   unsigned long i;
   int j;

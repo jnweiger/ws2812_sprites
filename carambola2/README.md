@@ -1,3 +1,13 @@
+python implementation
+=====================
+	
+    scp uart.py root@192.168.2.1:
+    ssh -v root@192.168.2.1 'pkill python'
+    ssh -v root@192.168.2.1 'while true; do python uart.py blink; done'
+
+C implementation
+================
+
 Build instructions
 ------------------
 
@@ -26,6 +36,9 @@ While sitting inside the SDK, we add and build our package
     ls -l bin/*/packages/ws2812_sprites*
      -rw-r--r-- 1 testy users 1913 Jan  3 01:48 bin/ar71xx/packages/ws2812_sprites_1_ar71xx.ipk
 
+upload instructions
+-------------------
+
 To prepare for upload, you should have set up ssh connection to the device with ssh-keys so that it does 
 not prompt for passwords all the time.
 
@@ -44,4 +57,3 @@ Alternatively use the upload.sh script, which takes some shortcuts ...
 
     vi package/ws2812_sprites/src/ws2812_sprites.c
     ./upload.sh
-    

@@ -1,0 +1,26 @@
+				jw, Fri Jul  4 14:16:52 CEST 2014
+
+Drive a 4m WS2812 strip at 100Hz via usart
+==========================================
+
+Requirements
+------------
+ - 4m @ 60 leds/m => 240 leds.
+ - Refresh rate ca 100 hz (flicker free)
+ - bit timing 1.3usec (0.45+0.85 vs 0.85+0.45)
+ - memory for receive buffer: 240*3 * 2 = 1440 bytes (double buffer)
+ 
+
+Artefacts
+---------
+ - For each LED bit, we test UCSR0A & (1<<RXC0)
+   and store a byte in the input buffer.
+ - usart byte rate must be lower than LED bit-rate
+   to avoid overrun. 
+ - 1Mbps is possible, or 
+   500kbaud which is a standard baud rate at windows and linux.
+ - ATmega328 -> 2kb SRAM. 2.55 EUR reichetl
+ - The 0.85 usec gap per LED-bit is 16 cpu cycles at 20Mhz.
+ - We need all of them. -> 20 MHz Quartz!
+
+

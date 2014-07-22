@@ -4,6 +4,9 @@
 #
 # use the uart at higher baud rates and compile the bitstream for the ws2812
 #
+# We use a 74HTC02 as an inverter and 3.3V to 5V level shifter.
+#
+# This is not reliable:
 # We add an open collector driver to the tx pin, which has two helpful effects
 # - open collector can drive long lines, with the pullup on the receiving end.
 # - the H-L transition enforced by the uart stopbit-startbit combination becomes
@@ -15,6 +18,10 @@
 
 import os, time,sys
 
+# #define AR933X_UART_MAX_STEP    0x3333
+# ... as suggested in http://permalink.gmane.org/gmane.comp.embedded.openwrt.devel/23013
+# This value should range between 1310-13107 to maintain a better than +5% accuracy.
+#
 # serialClockFreq = 400Mhz
 # (gdb) p 1310*400000/(131.072*800000.)
 # $1 = 4.99725341796875

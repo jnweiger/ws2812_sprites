@@ -1,0 +1,29 @@
+				js, Mi 23. Jul 00:19:37 CEST 2014
+
+Control you LED strip from your mobile phone
+--------------------------------------------
+
+The android app hyperion free implements a color chooser.
+Its main screen features three widgets:
+ - a wheel with color hue, 
+ - a slider for saturation
+ - a slider for value.
+
+Its settings screen accepts an IP-address and a port number to connect to.
+The connection is TCP, and after each command, a response is expected, 
+but the contents of the response is ignored.
+
+Commands are JSON formatted, and terminated by newline. The response format
+is irrelevant, the terminating newline is important.
+
+Example commands sent by the app:
+
+{"command":"serverinfo"}
+
+{"command":"color","priority":99,"color":[0,2,255]}
+
+{"command":"color","priority":99,"color":[255,232,110],"duration":14400000}
+
+{"command":"clearall"}
+
+

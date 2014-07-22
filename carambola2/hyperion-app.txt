@@ -27,3 +27,8 @@ Example commands sent by the app:
 {"command":"clearall"}
 
 
+
+The reply should contain a success value. This is probably a good reply:
+{"success":"True"}\n
+
+

@@ -12,3 +12,6 @@ settings generated with http://www.acmesystems.it/pinout_arietta
  ttyS2 enabled, i2c-0 enabled, SPI1 enabled
  PWM lines enabled,  I2S bus enabled
 
+http://www.acmesystems.it/ledpanel
+git clone https://github.com/tanzilli/ledpanel.git
+

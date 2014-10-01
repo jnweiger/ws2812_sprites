@@ -1,0 +1,77 @@
+				jw, So 3. Aug 21:40:47 CEST 2014
+
+turn the wlan module into an access point
+-----------------------------------------
+
+# http://www.acmesystems.it/webapp_server
+# http://github.com/tanzilli/playground
+apt-get update
+apt-get install hostapd
+apt-get install isc-dhcp-server
+
+cat >> /etc/hostapd.conf << EOF
+#change wlan0 to your wireless device
+interface=wlan0
+driver=nl80211
+ssid=Arietta_jw
+channel=1
+EOF
+
+
+cat /etc/network/interfaces
+ auto lo
+ iface lo inet loopback
+
+ allow-hotplug eth0
+ iface eth0 inet dhcp
+ hwaddress ether 00:01:04:1b:2C:1F
+
+ auto wlan0
+ iface wlan0 inet static
+ address 192.168.25.1
+ netmask 255.255.255.0 
+
+# if you need to change the above: reboot.
+
+hostapd /etc/hostapd.conf &
+
+vi /etc/default/isc-dhcp-server
+...
+ INTERFACES="wlan0"
+ZZ
+
+vi /etc/dhcp/dhcpd.conf
+ ddns-update-style none;
+
+ option domain-name "arietta-jw.org";
+ option domain-name-servers 192.168.25.1;
+
+ default-lease-time 600;
+ max-lease-time 7200;
+
+ authoritative;
+
+ log-facility local7;
+
+ subnet 192.168.25.0 netmask 255.255.255.0 {
+   range 192.168.25.50 192.168.25.100;
+   option routers 192.168.25.1;
+ }
+ZZ
+
+cd /bin
+wget --no-check-certificate https://raw.githubusercontent.com/tanzilli/playground/master/python/wab/fakedns.py
+vi fakedns.py
+  #! /usr/bin/python
+...
+  ip='192.168.25.1'
+ZZ
+chmod a+x fakedns.py
+
+vi /etc/rc.local
+...
+ hostapd /etc/hostapd.conf &
+ sleep 1
+ /bin/fakedns.py &
+ exit 0
+ZZ

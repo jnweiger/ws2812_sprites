@@ -1,0 +1,77 @@
+			jw, So 3. Aug 20:48:01 CEST 2014
+
+Connect arietta to the internet
+-------------------------------
+# Plug USB into a linux pc and 
+# check if the USB cable contains etherent.
+dmesg
+ ...
+ [94791.590440] usb 2-1: new high-speed USB device number 9 using xhci_hcd
+ [94791.602831] usb 2-1: New USB device found, idVendor=0525, idProduct=a4a2
+ [94791.602840] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+ [94791.602846] usb 2-1: Product: RNDIS/Ethernet Gadget
+ [94791.631074] cdc_eem 2-1:1.0 usb0: register 'cdc_eem' at usb-0000:00:14.0-1, CDC EEM Device, b6:02:ba:c0:42:21
+ [94791.650575] systemd-udevd[24947]: renamed network interface usb0 to enp0s20u1
+
+ip a
+ ...
+ 4: enp0s20u1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UNKNOWN qlen 1000
+    link/ether b6:02:ba:c0:42:21 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.10.20/24 brd 192.168.10.255 scope global enp0s20u1
+       valid_lft forever preferred_lft forever
+    inet6 fe80::b402:baff:fec0:4221/64 scope link 
+       valid_lft forever preferred_lft forever
+
+# -> good news: a new ethernet device was created for me.
+
+NetworkManager
+ manual, device ...(enp0s20u1)
+ addr  192.168.10.20/24
+
+sudo sh
+echo >> /etc/sudoers 'acme ALL=(ALL:ALL) NOPASSWD: ALL'
+
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+dmesg | grep 'usb0 to'
+usbdev=enp0s20u1
+extdev=wlp3s0
+iptables -t nat -A POSTROUTING -o $extdev -j MASQUERADE
+iptables -A FORWARD -i $extdev -o $usbdev -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i $usbdev -o $extdev -j ACCEPT
+
+
+scp -v owncloud-7.0.1.tar.bz2 root@192.168.10.10:/media/data/
+
+ssh root@192.168.10.10
+ # password: acmesystems
+ping 8.8.8.8
+ ...
+
+apt-get update
+ # finally, we can update!
+exit
+
+apt-get install php5-sqlite bzip php5-GD
+ # pulls 15 packages, ca 8MB.
+
+vi /etc/php5/cgi/php.ini
+/2M
+ ; upload_max_filesize = 2M
+ upload_max_filesize = 10M
+...
+/8M
+ ; post_max_size = 8M
+ post_max_size = 10M
+...
+ZZ
+
+vi /etc/fstab
+...
+ tmpfs /tmp     tmpfs nodev,nosuid,size=10M,mode=1777 0 0
+ tmpfs /var/tmp tmpfs nodev,nosuid,size=10M,mode=1777 0 0
+...
+
+vi /etc/default/tmpfs
+...
+

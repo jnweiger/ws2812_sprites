@@ -2135,9 +2135,18 @@ atmel_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
 		break;
 
 	case TCGETX:
-                tcgetx.baud_base = 12345;
-                tcgetx.custom_divisor = 9876;
-                tcgetx.xmit_fifo_size = 333;
+                tcgetx.custom_divisor = UART_GET_BRGR(port) & ATMEL_US_CD;
+                tcgetx.baud_base = port->uartclk / (16 * (tcgetx.custom_divisor - 1));
+                tcgetx.line = port->uartclk;
+                tcgetx.xmit_fifo_size = port->fifosize;
+                tcgetx.type  = atmel_use_dma_tx(port);
+                tcgetx.flags = atmel_use_pdc_tx(port);
+#ifdef CONFIG_SERIAL_ATMEL_PDC
+                tcgetx.flags += 0x1000;
+#endif
+                tcgetx.port = 0;
+                tcgetx.port_high = 0;
+                tcgetx.irq = 0;
 		if (copy_to_user((struct serial_struct *) arg, &tcgetx, sizeof(tcgetx)))
 		  return -EFAULT;
 		break;

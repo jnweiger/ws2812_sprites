@@ -50,6 +50,21 @@ Candidates:
   TIOCGETX TIOCSETX
   TCGETX TCSETX
 
+root@arietta:~# ./tcsetx /dev/ttyS2
+/dev/ttyS2 -> fd=3
+TCGETX=0 -> r=21554, errno=0
+baud_base=9611 custom_divisor=868 xmit_fifo_size=1
+type(use_dma_tx)=0 flags(use_pdc_tx)=0 line=133333333
+
+root@arietta:~# ./tcsetx /dev/ttyS0
+/dev/ttyS0 -> fd=3
+TCGETX=0 -> r=21554, errno=0
+baud_base=117370 custom_divisor=72 xmit_fifo_size=1
+type(use_dma_tx)=0 flags(use_pdc_tx)=0 line=133333333
+
+# We have no dma channels, can we switch them on?
+of_get_property(np, "atmel,use-dma-tx", N
+
 
 			jw, Mi 1. Okt 16:15:03 CEST 2014
 

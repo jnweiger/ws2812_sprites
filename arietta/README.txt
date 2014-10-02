@@ -45,9 +45,6 @@ static bool atmel_use_dma_tx(struct uart_port *port)
 dma_map_single(...)
 
 we need to add an extra ioctl to set the desired extended baud rate
-Candidates: 
-  TIOCGSERIAL TIOCSSERIAL
-  TIOCGETX TIOCSETX
   TCGETX TCSETX
 
 root@arietta:~# ./tcsetx /dev/ttyS2
@@ -56,11 +53,15 @@ TCGETX=0 -> r=21554, errno=0
 baud_base=9611 custom_divisor=868 xmit_fifo_size=1
 type(use_dma_tx)=0 flags(use_pdc_tx)=0 line=133333333
 
-root@arietta:~# ./tcsetx /dev/ttyS0
-/dev/ttyS0 -> fd=3
-TCGETX=0 -> r=21554, errno=0
-baud_base=117370 custom_divisor=72 xmit_fifo_size=1
-type(use_dma_tx)=0 flags(use_pdc_tx)=0 line=133333333
+root@arietta:~# ./tcsetx /dev/ttyS2 2000000
+/dev/ttyS2 -> fd=3
+TCGETX=21554 -> r=0, errno=0
+TCSETX=21555 -> r=0, errno=0
+TCGETX=21554 -> r=0, errno=0
+baud_base=2083333 custom_divisor=5 xmit_fifo_size=1
+type(use_dma_tx)=0 flags(use_pdc_tx)=4096 line=133333333
+
+## Cool, setting the baud rate works!
 
 # We have no dma channels, can we switch them on?
 of_get_property(np, "atmel,use-dma-tx", N

@@ -2131,13 +2131,33 @@ atmel_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
 	case TCSETX:
 		if (copy_from_user(&tcgetx, (struct serial_struct *) arg, sizeof(tcgetx)))
 		  return -EFAULT;
-		return -EOWNERDEAD;	// not implemented
+                if (!tcgetx.custom_divisor)
+                  {
+                    // calculate customer_divisor from uartclk and baud_base
+                    tcgetx.custom_divisor = 1 + port->uartclk / (16 * tcgetx.baud_base);
+                  }
+                else
+                  {
+                    // calculate baud_base from uartclk and custom_divisor
+                    tcgetx.baud_base = port->uartclk / (16 * (tcgetx.custom_divisor - 1));
+                  }
+	        if (tcgetx.custom_divisor > 65535)
+                  {
+		    /* BRGR is 16-bit, so switch to slower clock */
+		    tcgetx.custom_divisor /= 8;
+		    // mode |= ATMEL_US_USCLKS_MCK_DIV8;
+		    return -EOWNERDEAD;     // not implemented
+                  }
+		printk(KERN_ERR "atmel_serial: TCSETX custom_divisor=%d\n", tcgetx.custom_divisor);
+	        UART_PUT_BRGR(port, tcgetx.custom_divisor);
+		if (copy_to_user((struct serial_struct *) arg, &tcgetx, sizeof(tcgetx)))
+		  return -EFAULT;
 		break;
 
 	case TCGETX:
+                tcgetx.line = port->uartclk;
                 tcgetx.custom_divisor = UART_GET_BRGR(port) & ATMEL_US_CD;
                 tcgetx.baud_base = port->uartclk / (16 * (tcgetx.custom_divisor - 1));
-                tcgetx.line = port->uartclk;
                 tcgetx.xmit_fifo_size = port->fifosize;
                 tcgetx.type  = atmel_use_dma_tx(port);
                 tcgetx.flags = atmel_use_pdc_tx(port);
@@ -2152,7 +2172,6 @@ atmel_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		printk(KERN_ERR "atmel_serial: unknown ioctl %d\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 	return 0;

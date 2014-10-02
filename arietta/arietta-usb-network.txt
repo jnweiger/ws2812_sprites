@@ -47,6 +47,7 @@ ssh root@192.168.10.10
  # password: acmesystems
 ping 8.8.8.8
  ...
+echo 'options timeout:1 attempts:1' >> /etc/resolv.conf
 
 apt-get update
  # finally, we can update!

@@ -2,6 +2,8 @@
 
 choosing usart1, usart0, spi
 ----------------------------
+# study http://www.acmesystems.it/rs232, section about DMA settings...
+# study https://github.com/tanzilli/playground spi/usart examples in C and python.
 # We use the dts designer at http://www.acmesystems.it/pinout_arietta 
 # for guidance, what is most easy.
 # The usart's have no dma when enabled. Their buffer is 1 byte.
@@ -13,6 +15,11 @@ choosing usart1, usart0, spi
 # Alternative 1)
 # We have more specific instructions for the device tree, in linux-3.16.1/Documentation/devicetree/bindings/serial/atmel-usart.txt
 # demonstrating usart0 with dma. Try that.
+#
+# best success so far using acme-arietta.dts.usart0:
+#  atmel_usart f801c000.serial: using dma0chan1 for rx DMA transfers
+#  atmel_usart f801c000.serial: using dma0chan2 for tx DMA transfers
+# but fifo_size=1 and no light. hmmm.
 # 
 # Alternative 2)
 # Try SPI. 
@@ -24,6 +31,8 @@ compile a device tree
 # in order to enable dma for usart1 (aka serial2 aka /dev/ttyS2)
 # 
 # study https://www.sparkfun.com/datasheets/DevTools/SAM7/at91sam7%20serial%20communications.pdf
+# study http://www.acmesystems.it/rs232, section about DMA settings...
+
 firefox http://devicetree.org/Device_Tree_Usage
 less linux-3.16.1/Documentation/devicetree/bindings/serial/atmel-usart.txt
 less linux-3.16.1/arch/arm/boot/dts/at91sam9g25.dtsi

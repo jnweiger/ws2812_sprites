@@ -2,6 +2,10 @@
 
 choosing usart1, usart0, spi
 ----------------------------
+# With /dev/ttyS2 (usart1) and no dma or pdc enabled, we can make the ws2812 leds flicker wild.
+# This confirms correct wiring, and basic setup. But there is no reliable timing yet. This is to be
+# expected due to one interrupt per byte.
+#
 # study http://www.acmesystems.it/rs232, section about DMA settings...
 # study https://github.com/tanzilli/playground spi/usart examples in C and python.
 # We use the dts designer at http://www.acmesystems.it/pinout_arietta 

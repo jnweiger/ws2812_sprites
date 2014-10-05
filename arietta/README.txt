@@ -1,9 +1,12 @@
+
+
 			jw, Fr 3. Okt 18:18:15 CEST 2014
 
 compile a device tree
 ---------------------
 # in order to enable dma for usart1 (aka serial2 aka /dev/ttyS2)
 # 
+# study https://www.sparkfun.com/datasheets/DevTools/SAM7/at91sam7%20serial%20communications.pdf
 firefox http://devicetree.org/Device_Tree_Usage
 less linux-3.16.1/Documentation/devicetree/bindings/serial/atmel-usart.txt
 less linux-3.16.1/arch/arm/boot/dts/at91sam9g25.dtsi

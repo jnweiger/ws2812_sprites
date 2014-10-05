@@ -23,6 +23,7 @@ choosing usart1, usart0, spi
 # best success so far using acme-arietta.dts.usart0:
 #  atmel_usart f801c000.serial: using dma0chan1 for rx DMA transfers
 #  atmel_usart f801c000.serial: using dma0chan2 for tx DMA transfers
+#  atmel_serial: TCSETX custom_divisor=4
 # but fifo_size=1 and no light. hmmm.
 # 
 # Alternative 2)

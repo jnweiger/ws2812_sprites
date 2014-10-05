@@ -1,3 +1,31 @@
+			jw, Fr 3. Okt 18:18:15 CEST 2014
+
+compile a device tree
+---------------------
+# in order to enable dma for usart1 (aka serial2 aka /dev/ttyS2)
+# 
+firefox http://devicetree.org/Device_Tree_Usage
+less linux-3.16.1/Documentation/devicetree/bindings/serial/atmel-usart.txt
+less linux-3.16.1/arch/arm/boot/dts/at91sam9g25.dtsi
+
+vi arch/arm/boot/dts/acme-arietta.dts
+...
+                        /* /dev/ttyS2 with PDC (not dma) */
+                        usart1: serial@f8020000 {
+                                atmel,use-dma-rx;
+                                atmel,use-dma-tx;
+                                dma-names = "tx", "rx";
+                                status ="okay";
+                                pinctrl-0 = <&pinctrl_usart1 
+                                        &pinctrl_usart1_rts 
+                                        &pinctrl_usart1_cts>;
+                        };
+ZZ
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- acme-arietta.dtb VERBOSE=1
+scp arch/arm/boot/dts/acme-arietta.dtb root@192.168.10.10:/boot
+
+		
+
 			jw, Do 2. Okt 10:31:21 CEST 2014
 
 compile a kernel

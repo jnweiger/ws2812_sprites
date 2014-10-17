@@ -2,6 +2,11 @@
 
 Connect arietta to the internet
 -------------------------------
+
+# on arietta:
+# vi /etc/network/interfaces
+# shoud contain default gateway 192.168.10.20
+
 # Plug USB into a linux pc and 
 # check if the USB cable contains etherent.
 dmesg

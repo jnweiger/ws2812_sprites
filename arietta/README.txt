@@ -26,7 +26,29 @@ choosing usart1, usart0, spi
 #  atmel_serial: TCSETX custom_divisor=4
 # but fifo_size=1 and no light. hmmm.
 # 
+#
 # Alternative 2)
+# FROM https://groups.google.com/forum/#!msg/acmesystems/otm4_54Y5mU/DJXmHqqAbIkJ
+In case someone else will need it...
+This made my Aria ttyS3 use DMA and work fine at speed 460800.
+(Kernel 3.14.23)
+
+     /* /dev/ttyS3 */
+      usart2: serial@f8024000 {
+        interrupts = <7 IRQ_TYPE_LEVEL_HIGH 5>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_usart2>;
+        atmel,use-dma-rx;
+        atmel,use-dma-tx;
+        dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(12)>,
+               <&dma1 1 (AT91_DMA_CFG_PER_ID(13) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+
+        dma-names = "tx", "rx";
+        status = "okay";
+      };
+
+###############################################
+# Alternative 3)
 # Try SPI. 
 
 			jw, Fr 3. Okt 18:18:15 CEST 2014

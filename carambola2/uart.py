@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# (c) 2014 jw@suse.de
+# (c) 2014 jw@owncloud.com
 #
 # use the uart at higher baud rates and compile the bitstream for the ws2812
 #
@@ -22,6 +22,7 @@ import os, time,sys
 # ... as suggested in http://permalink.gmane.org/gmane.comp.embedded.openwrt.devel/23013
 # This value should range between 1310-13107 to maintain a better than +5% accuracy.
 #
+
 # serialClockFreq = 400Mhz
 # (gdb) p 1310*400000/(131.072*800000.)
 # $1 = 4.99725341796875
@@ -61,6 +62,15 @@ class CarambolaUartWS2812():
     ## os.system("mmio -x 0x18020008 0x00003600") # set 4.255Mhz bit clock, 0.235us
   
   class Pattern():
+
+    doublebit = (
+        # the uart sends the bits lsb first. and we invert all.
+        chr(255-0x10),          # ^....1..._    0 0
+        chr(255-0x70),          # ^....111._    0 1
+        chr(255-0x13),          # ^11..1..._    1 0
+        chr(255-0x73),          # ^11..111._    1 1
+      )
+
     def __init__(self):
       self.data = ''
       
@@ -71,17 +81,33 @@ class CarambolaUartWS2812():
       """byte order to send: g, r, b
          bit order to send: msb bits first.
       """
-      doublebit = (
-        # the uart sends the bits lsb first. and we invert all.
-        chr(255-0x10),          # ^....1..._    0 0
-        chr(255-0x70),          # ^....111._    0 1
-        chr(255-0x13),          # ^11..1..._    1 0
-        chr(255-0x73),          # ^11..111._    1 1
-      )
 
-      for i in (6,4,2,0): self.data += doublebit[((g >> i) & 3)]
-      for i in (6,4,2,0): self.data += doublebit[((r >> i) & 3)]
-      for i in (6,4,2,0): self.data += doublebit[((b >> i) & 3)]
+      for i in (6,4,2,0): self.data += self.doublebit[((g >> i) & 3)]
+      for i in (6,4,2,0): self.data += self.doublebit[((r >> i) & 3)]
+      for i in (6,4,2,0): self.data += self.doublebit[((b >> i) & 3)]
+  
+    def encode_rgb(self, r,g,b):
+      """each rgb triple consumes 12 bytes"""
+      x = []
+      for i in (6,4,2,0): x.append(self.doublebit[((g >> i) & 3)])
+      for i in (6,4,2,0): x.append(self.doublebit[((r >> i) & 3)])
+      for i in (6,4,2,0): x.append(self.doublebit[((b >> i) & 3)])
+      return x
+    
+    def set_rgb(self, pos, r,g,b):
+      """each rgb triple consumes 12 bytes"""
+      head = self.data[:12*pos]
+      tail = self.data[12*pos+12:]
+      self.data = head + ''.join(self.encode_rgb(r,g,b)) + tail
+      
+  def send(self, pattern):
+    self.ser.write(pattern.data)
+    self.ser.flush()
+    time.sleep(.001)
+    
+  def close(self):
+    self.ser.close()
+    os.system("mmio -x 0x18020008 0x0024368F") # back to original 115200 baud
     
   def send(self, pattern):
     self.ser.write(pattern.data)
@@ -96,26 +122,79 @@ led = CarambolaUartWS2812()
 
 def blink():
   p1 = led.Pattern()
-  p1.add(255,0,0)        # R
-  p1.add(0,255,0)        # G
-  p1.add(0,0,255)        # B
-  p1.add(0,255,255)      # C
-  p1.add(255,0,255)      # M
-  p1.add(255,255,0)      # Y
+  for i in range(8):
+    p1.add(255,0,0)        # R
+    p1.add(0,255,0)        # G
+    p1.add(0,0,255)        # B
+    p1.add(0,255,255)      # C
+    p1.add(255,0,255)      # M
+    p1.add(255,255,0)      # Y
+    p1.add(0,0,0)          # K
 
   p2 = led.Pattern()
-  p2.add(0,255,0)        # G
-  p2.add(0,0,255)        # B
-  p2.add(0,255,255)      # C
-  p2.add(255,0,255)      # M
-  p2.add(255,255,0)      # Y
-  p2.add(255,0,0)        # R
+  for i in range(8):
+    p2.add(0,255,0)        # G
+    p2.add(0,0,255)        # B
+    p2.add(0,255,255)      # C
+    p2.add(255,0,255)      # M
+    p2.add(255,255,0)      # Y
+    p2.add(0,0,0)          # K
+    p2.add(255,0,0)        # R
 
-  for i in range(20):
-    led.send(p1)
-    time.sleep(.3)
-    led.send(p2)
-    time.sleep(.3)
+  p3 = led.Pattern()
+  for i in range(8):
+    p3.add(0,0,255)        # B
+    p3.add(0,255,255)      # C
+    p3.add(255,0,255)      # M
+    p3.add(255,255,0)      # Y
+    p3.add(0,0,0)          # K
+    p3.add(255,0,0)        # R
+    p3.add(0,255,0)        # G
+
+  p4 = led.Pattern()
+  for i in range(8):
+    p4.add(0,255,255)      # C
+    p4.add(255,0,255)      # M
+    p4.add(255,255,0)      # Y
+    p4.add(0,0,0)          # K
+    p4.add(255,0,0)        # R
+    p4.add(0,255,0)        # G
+    p4.add(0,0,255)        # B
+
+  p5 = led.Pattern()
+  for i in range(8):
+    p5.add(255,0,255)      # M
+    p5.add(255,255,0)      # Y
+    p5.add(0,0,0)          # K
+    p5.add(255,0,0)        # R
+    p5.add(0,255,0)        # G
+    p5.add(0,0,255)        # B
+    p5.add(0,255,255)      # C
+
+  p6 = led.Pattern()
+  for i in range(8):
+    p6.add(255,255,0)      # Y
+    p6.add(0,0,0)          # K
+    p6.add(255,0,0)        # R
+    p6.add(0,255,0)        # G
+    p6.add(0,0,255)        # B
+    p6.add(0,255,255)      # C
+    p6.add(255,0,255)      # M
+
+  p7 = led.Pattern()
+  for i in range(8):
+    p7.add(255,255,0)      # Y
+    p7.add(0,0,0)          # K
+    p7.add(255,0,0)        # R
+    p7.add(0,255,0)        # G
+    p7.add(0,0,255)        # B
+    p7.add(0,255,255)      # C
+    p7.add(255,0,255)      # M
+
+  for i in range(40):
+    for p in (p1, p2, p3, p4, p5, p6, p7):
+      led.send(p)
+      time.sleep(.04)
 
 
 def orange_green():
@@ -133,12 +212,38 @@ def white():
     wh.add(255,255,255)
   led.send(wh)
   
+def red(length):
+  rd = led.Pattern()
+  for i in range(length):
+    rd.add(70,0,0)
+  led.send(rd)
+ 
+def pingpong(length, rgb, speed):
+  p = led.Pattern()
+  for i in range(length):
+    p.add(0,10,0)
+  led.send(p)
+  for j in range(2):
+    for i in range(length):
+      p.set_rgb(i, rgb[0], rgb[1], rgb[2])
+      if i > 1:
+        p.set_rgb(i-1, 1, 5, 1)
+      led.send(p)
+      time.sleep(.05)
+    for i in reversed(range(length)):
+      p.set_rgb(i, 1, 5, 1)
+      if i > 1:
+        p.set_rgb(i-1, rgb[0], rgb[1], rgb[2])
+      led.send(p)
+      time.sleep(.05)
+  
 def minimum():
   off = led.Pattern()
   for i in range(50):
     off.add(1,1,1) 
   led.send(off)
 
+ 
 try:
   if len(sys.argv) > 1 and sys.argv[1] == 'blink':
     blink()
@@ -146,6 +251,10 @@ try:
     orange_green()
   elif len(sys.argv) > 1 and sys.argv[1] == 'white':
     white()
+  elif len(sys.argv) > 1 and sys.argv[1] == 'red':
+    red(3*46)
+  elif len(sys.argv) > 1 and sys.argv[1] == 'pingpong':
+    pingpong(14+3*30, (255,0,0), 1)
   else:
     minimum()
 except Exception as e:

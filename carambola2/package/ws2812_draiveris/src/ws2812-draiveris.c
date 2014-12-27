@@ -29,12 +29,25 @@
 #include <linux/fs.h>
 
 
-#define sysRegRead(phys) \
- (*(volatile u32 *)KSEG1ADDR(phys)) 
+#define sysRegRead(phys) 	 (*(volatile u32 *)KSEG1ADDR(phys))
+#define sysRegWrite(phys, val)	((*(volatile u32 *)KSEG1ADDR(phys)) = (val))
 
-#define sysRegWrite(phys, val) \
- ((*(volatile u32 *)KSEG1ADDR(phys)) = (val)) 
+// FROM http://www.eeboard.com/wp-content/uploads/downloads/2013/08/AR9331.pdf p65, p77
+#define SYS_REG_GPIO_OE		0x18040000L
+#define SYS_REG_GPIO_IN		0x18040004L
+#define SYS_REG_GPIO_OUT	0x18040008L
+#define SYS_REG_GPIO_SET	0x1804000CL
+#define SYS_REG_GPIO_CLEAR	0x18040010L
+#define SYS_REG_GPIO_INT	0x18040014L
+#define SYS_REG_GPIO_INT_TYPE	0x18040018L
+#define SYS_REG_GPIO_INT_POLARITY	0x1804001CL
+#define SYS_REG_GPIO_INT_PENDING	0x18040020L
+#define SYS_REG_GPIO_INT_MASK		0x18040024L
+#define SYS_REG_GPIO_INT_FUNCTION_1	0x18040028L
+#define SYS_REG_GPIO_IN_ETH_SWITCH_KED	0x1804002CL
+#define SYS_REG_GPIO_INT_FUNCTION_2	0x18040030L
 
+#define SYS_REG_RST_WATCHDOG_TIMER 0x1806000CL
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Saulius Lukse saulius.lukse@gmail.com; Juergen Weigert juewei@fabfolk.com");
@@ -53,64 +66,64 @@ static int inverted = 1; // default is 1 == inverted, good for 74HCT02 line driv
 module_param(inverted, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(inverted, "drive inverted outputs");
 
-#define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(0x1804000CL, gpio_bits); } while (0)
-#define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(0x18040010L, gpio_bits); } while (0)
+#define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
+#define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
 
 void led_bit(int bit)
 {
   if (bit==0)
   {
     // high (3.3us)
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
 
     // low (7us)
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
 
-    //sysRegWrite(0x1804000CL, 1<<gpio_number);
+    //sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
   }
   else
   {
     // high (3.3us)
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
-    sysRegWrite(0x1804000CL, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
 
     // low (7us)
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
-    sysRegWrite(0x18040010L, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
 
-    //sysRegWrite(0x1804000CL, 1<<gpio_number);
+    //sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
   }
 }
 
@@ -123,34 +136,61 @@ void update_leds(char *buff, size_t len)
   long int i = 0;
   int b = 0;
 
-  sysRegWrite(0x1806000CL, 1<<31); // Just in case set watchdog to timeout some time later 
-  sysRegWrite(0x18040000L, 1<<gpio_number); // output enable to PIN20
-
-  //static DEFINE_SPINLOCK(critical);
-
-  sysRegWrite(0x1804000CL, 1<<gpio_number);	// HIGH
-  // wait 65uS
-  for(i=0;i<1000;i++)
-  {
-    volatile int j = i;
-    sysRegWrite(0x18040010L, 1<<gpio_number);	// LOW
-  }
+  sysRegWrite(SYS_REG_RST_WATCHDOG_TIMER, 1<<31); // Just in case set watchdog to timeout some time later
+  // http://www.eeboard.com/wp-content/uploads/downloads/2013/08/AR9331.pdf
+  // p65: SYS_REG_GPIO_OE 0: Enables the driver to be used as input mechanism; 1: Enables the output driver
+  i = sysRegRead(SYS_REG_GPIO_OE);
+  sysRegWrite(SYS_REG_GPIO_OE, i|(1<<gpio_number)); 	// output enable to PIN20
 
 
-  static DEFINE_SPINLOCK(critical);
-  spin_lock_irqsave(&critical, flags);
-  for (i = 0; i<len; i++)
-  {
-    for(b = 7; b>=0; b--)
-      if (buff[i] & (1 << b))
-        led_bit(1);
-    else
-        led_bit(0);
-  }
-  sysRegWrite(0x18040010L, 1<<gpio_number);	// LOW
-  //sysRegWrite(0x1804000CL, 1<<gpio_number);	// HIGH
-  spin_unlock_irqrestore(&critical, flags);
+  if (inverted)
+    {
+      SET_GPIOS_L(1<<gpio_number);
+      // wait 65uS
+      for(i=0;i<1000;i++)
+      {
+	volatile int j = i;
+	SET_GPIOS_H(1<<gpio_number);
+      }
 
+
+      static DEFINE_SPINLOCK(critical);
+      spin_lock_irqsave(&critical, flags);
+      for (i = 0; i<len; i++)
+      {
+	for(b = 7; b>=0; b--)
+	  if (buff[i] & (1 << b))
+	    led_bit(0);
+	else
+	    led_bit(1);
+      }
+      SET_GPIOS_H(1<<gpio_number);
+      spin_unlock_irqrestore(&critical, flags);
+    }
+  else
+    {
+      SET_GPIOS_H(1<<gpio_number);
+      // wait 65uS
+      for(i=0;i<1000;i++)
+      {
+	volatile int j = i;
+	SET_GPIOS_L(1<<gpio_number);
+      }
+
+
+      static DEFINE_SPINLOCK(critical);
+      spin_lock_irqsave(&critical, flags);
+      for (i = 0; i<len; i++)
+      {
+	for(b = 7; b>=0; b--)
+	  if (buff[i] & (1 << b))
+	    led_bit(1);
+	else
+	    led_bit(0);
+      }
+      SET_GPIOS_L(1<<gpio_number);
+      spin_unlock_irqrestore(&critical, flags);
+    }
 }
 
 
@@ -195,11 +235,11 @@ int init_module(void)
     return Major;
   }
 
-	printk(KERN_INFO "Major = %d\n", Major);
+  printk(KERN_INFO "Major = %d\n", Major);
   printk(KERN_INFO "GPIO number: %d\n", gpio_number);
+  printk(KERN_INFO "Inverted: %d\n", inverted);
 
-
-	return SUCCESS;
+  return SUCCESS;
 }
 
 

@@ -28,9 +28,10 @@ General instructions to build the entire SDK are like this:
 While sitting inside the SDK, we add and build our package
 
     cd package
-    ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_sprites .
+    ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_draiveris .
     ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_sprites .
     echo >> .config CONFIG_PACKAGE_ws2812_sprites=y
+    echo >> .config CONFIG_PACKAGE_kmod-ws2812_draiveris=y
     # make oldconfig # not needed?
     make package/ws2812_sprites/compile V=99
     make package/ws2812_sprites/install V=99

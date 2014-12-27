@@ -8,19 +8,19 @@
 #
 ## PC Build single package
 # cd /home/test/carambola2/
-# clear; make package/ws2812_draiveris/clean
-# clear; make package/ws2812_draiveris/compile V=99
+# clear; make package/ws2812-draiveris/clean
+# clear; make package/ws2812-draiveris/compile V=99
 
 # PC: Carambola picocom
 # sudo picocom -b 115200 /dev/ttyUSB0
 
 # Carambola: get packet
-## rmmod ws2812_draiveris; 
-## rm /lib/modules/3.7.9/ws2812_draiveris.ko; 
-## cd /tmp; rm kmod-ws2812_draiveris*; 
-## wget http://192.168.0.63:8000/packages/kmod-ws2812_draiveris_3.7.9-5_ar71xx.ipk; 
-## opkg install kmod-ws2812_draiveris_3.7.9-5_ar71xx.ipk --force-reinstall;
-## insmod /lib/modules/3.7.9/ws2812_draiveris.ko gpio_number=20 inverted=1
+## rmmod ws2812-draiveris; 
+## rm /lib/modules/3.7.9/ws2812-draiveris.ko; 
+## cd /tmp; rm kmod-ws2812-draiveris*; 
+## wget http://192.168.0.63:8000/packages/kmod-ws2812-draiveris_3.7.9-5_ar71xx.ipk; 
+## opkg install kmod-ws2812-draiveris_3.7.9-5_ar71xx.ipk --force-reinstall;
+## insmod /lib/modules/3.7.9/ws2812-draiveris.ko gpio_number=20 inverted=1
 ## mknod /dev/ws2812 c 253 0
 ## echo -en '\x00\x00\x40' > /dev/ws2812
 
@@ -45,22 +45,22 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
-PKG_NAME:=kmod-ws2812_draiveris
+PKG_NAME:=kmod-ws2812-draiveris
 PKG_RELEASE:=5
 
 include $(INCLUDE_DIR)/package.mk
 
-define KernelPackage/ws2812_draiveris
+define KernelPackage/ws2812-draiveris
 	UBMENU:=Other modules
 	TITLE:=ws2812 draiveris drivers
 	FILES:= \
-	$(PKG_BUILD_DIR)/ws2812_draiveris.ko
+	$(PKG_BUILD_DIR)/ws2812-draiveris.ko
 
-	AUTOLOAD:=$(call AutoLoad, 92, ws2812_draiveris-dev)
+	AUTOLOAD:=$(call AutoLoad, 92, ws2812-draiveris-dev)
 endef
 
-define KernelPackage/ws2812_draiveris/description
-	This package contains ws2812_draiveris drivers for
+define KernelPackage/ws2812-draiveris/description
+	This package contains ws2812-draiveris drivers for
 endef
 
 define Build/Prepare
@@ -77,8 +77,8 @@ define Build/Compile
 	modules
 endef
 
-define KernelPackage/ws2812_draiveris/install
+define KernelPackage/ws2812-draiveris/install
 	$(INSTALL_DIR) $(1)/lib/network/
 endef
 
-$(eval $(call KernelPackage,ws2812_draiveris))
+$(eval $(call KernelPackage,ws2812-draiveris))

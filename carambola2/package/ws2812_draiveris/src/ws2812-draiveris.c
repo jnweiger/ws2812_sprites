@@ -1,5 +1,5 @@
 /*  
- *  ws2812_draiveris.c - A bitbang kernel module for ws2812
+ *  ws2812-draiveris.c - A bitbang kernel module for ws2812
  *
  *  Copyright (C) 2006-2012 OpenWrt.org
  *  Copyright (C) 2012 Žilvinas Valinskas, Saulius Lukšė

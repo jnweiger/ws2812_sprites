@@ -29,6 +29,7 @@ While sitting inside the SDK, we add and build our package
 
     cd package
     ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_sprites .
+    ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_sprites .
     echo >> .config CONFIG_PACKAGE_ws2812_sprites=y
     # make oldconfig # not needed?
     make package/ws2812_sprites/compile V=99

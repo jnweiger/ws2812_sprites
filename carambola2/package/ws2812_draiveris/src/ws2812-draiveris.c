@@ -98,7 +98,7 @@ void led_bit(int bit)
   }
   else
   {
-    // high (3.3us)
+    // high (7us)
     sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
@@ -111,17 +111,17 @@ void led_bit(int bit)
     sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
 
-    // low (7us)
+    // low (3.3us)
     sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
     sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
 
     //sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
   }
@@ -129,7 +129,7 @@ void led_bit(int bit)
 
 
 
-void update_leds(char *buff, size_t len)
+void update_leds(const char *buff, size_t len)
 {
 
   unsigned long flags;
@@ -235,6 +235,7 @@ int init_module(void)
     return Major;
   }
 
+  printk(KERN_INFO "Build: %s %s\n", __DATE__, __TIME__);
   printk(KERN_INFO "Major = %d\n", Major);
   printk(KERN_INFO "GPIO number: %d\n", gpio_number);
   printk(KERN_INFO "Inverted: %d\n", inverted);

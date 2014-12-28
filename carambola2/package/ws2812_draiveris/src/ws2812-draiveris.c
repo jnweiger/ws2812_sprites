@@ -82,6 +82,7 @@ MODULE_PARM_DESC(gpios, "Comma separated list of GPIO numbers. Either use this, 
 
 #define GPIO_LIST_MAX	8	// not sure what a realistic limit is.
 static u_int32_t gpio_list[GPIO_LIST_MAX];
+static u_int32_t gpio_bit[GPIO_LIST_MAX];
 static int gpio_bit_mask;
 
 void led_bit_1_i(void)
@@ -296,13 +297,13 @@ int init_module(void)
   if (gpio_count > GPIO_LIST_MAX)
     {
       printk(KERN_ALERT "Error: gpio_count=%d > MAX=%d\n", gpio_count, GPIO_LIST_MAX);
-      return !SUCCESS;
+      return -EINVAL;
     }
 
   if (gpios && gpio_number >= 0)
     {
       printk(KERN_ALERT "Error: specify either gpios='%s' or gpio_number=%d, not both\n", gpios, gpio_number);
-      return !SUCCESS;
+      return -EINVAL;
     }
 
   gpio_bit_mask = 0;
@@ -310,25 +311,31 @@ int init_module(void)
   if (gpios)
     {
       int idx = 0;
+      int r;
       char *p = gpios;
       while (*p)
         {
-	  while (*p && (*p <'0' || *p >'9')) p++;
-	  if (kstrtou32(p, 0, gpio_list+idx))
-	    {
-              printk(KERN_ALERT "Error: cannot parse pos=%d at list of comma separated integers: gpios='%s'\n", p-gpios, gpios);
-              return !SUCCESS;
-	    }
-          gpio_bit[idx]  = 1<<gpio_list[idx];
-          gpio_bit_mask |= 1<<gpio_list[idx];
+          int n = 0;
+	  while (*p && (*p < '0' || *p > '9')) p++;
+          if (!*p) break;
+	  while (*p >= '0' && *p <= '9') n = 10*n + *p++ - '0';
+          gpio_list[idx] = n;
+          gpio_bit[idx]  = 1<<n;
+          gpio_bit_mask |= 1<<n;
 	  idx++;
 	}
       gpio_number = gpio_list[0];
       gpio_count = idx;
+      if (!gpio_count)
+        {
+          printk(KERN_ALERT "Error: cannot parse pos=%d at list of comma separated integers: gpios='%s'\n", p-gpios, gpios);
+          return -EINVAL;
+        }
     }
   else
     {
       int idx;
+      if (gpio_number < 0) gpio_number = GPIO_NUMBER_DEFAULT;
       // 3 chains: 7<<gpio_number
       for (idx = gpio_number; idx < gpio_number+gpio_count; idx++)
         {

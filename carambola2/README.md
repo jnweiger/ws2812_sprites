@@ -1,12 +1,23 @@
 python implementation
 =====================
 	
+Heavy glitches with 20 or more LEDs.
+Slight glitches always, as we are at the mercy of the scheduler.
+
     scp uart.py root@192.168.2.1:
     ssh -v root@192.168.2.1 'pkill python'
     ssh -v root@192.168.2.1 'while true; do python uart.py blink; done'
 
 C implementation
-================
+=================
+
+Bit banging with GPIO pins, kernel drivers with blocked interrupts and all.
+
+ Tested glitch-free with 270 leds.
+ We can drive multiple led strips, connected to separate GPIO pins
+ all simultaneously. The driver accepts write() calls, with G,R,B sequences,
+ as if all leds were in one single strip.
+
 
 Build instructions
 ------------------
@@ -26,17 +37,20 @@ General instructions to build the entire SDK are like this:
     make V=s
 
 While sitting inside the SDK, we add and build our package
+The ws2812_draiveris package is the kernel driver. It is production ready.
+The ws2812_sprites package is user land code, unfinished.
 
     cd package
     ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_draiveris .
     ln -s ~/src/github/ws2812_sprites/carambola2/package/ws2812_sprites .
-    echo >> .config CONFIG_PACKAGE_ws2812_sprites=y
-    echo >> .config CONFIG_PACKAGE_kmod-ws2812_draiveris=y
+    echo >> .config CONFIG_PACKAGE_ws2812-sprites=y
+    echo >> .config CONFIG_PACKAGE_kmod-ws2812-draiveris=y
     # make oldconfig # not needed?
     make package/ws2812_sprites/compile V=99
-    make package/ws2812_sprites/install V=99
-    ls -l bin/*/packages/ws2812_sprites*
-     -rw-r--r-- 1 testy users 1913 Jan  3 01:48 bin/ar71xx/packages/ws2812_sprites_1_ar71xx.ipk
+    make package/ws2812-draiveris/compile V=99
+    ls -l bin/*/packages/ws2812*
+     -rw-r--r-- 1 testy users 1913 Jan  3 01:48 bin/ar71xx/packages/ws2812-sprites_1_ar71xx.ipk
+     -rw-r--r-- 1 testy users 3839 Dez 28 00:08 bin/ar71xx/packages/kmod-ws2812-draiveris_3.10.49_8_ar71xx.ipk
 
 upload instructions
 -------------------
@@ -45,15 +59,22 @@ To prepare for upload, you should have set up ssh connection to the device with 
 not prompt for passwords all the time.
 
     # do this once, so that you don't get asked for passwords any more.
-    ssh-copy-id root@192.168.2.1
+    ssh-copy-id root@192.168.3.1	# this needs to go into /etc/dropbear/authorized_keys
 
 Upload and install the built binary package
 
-    scp bin/*/packages/ws2812_sprites* root@192.168.2.1:
-    ssh root@192.168.2.1:
-    opkg install ws2812_sprites_1_ar71xx.ipk
-     Installing ws2812_sprites (1) to root...
-     Configuring ws2812_sprites.
+    scp bin/*/packages/ws2812* root@192.168.3.1:/tmp
+    ssh root@192.168.3.1:
+    opkg remove ws2812-sprites kmod-ws2812-draaiveris
+    opkg install /tmp/ws2812-sprites_1_ar71xx.ipk
+     Installing ws2812-sprites (1) to root...
+     Configuring ws2812-sprites.
+    opkg install /tmp/kmod-ws2812-draiveris_3.10.49_8_ar71xx.ipk
+    rmmod kmod-ws2812-draiveris
+    insmod kmod-ws2812-draiveris gpios=20,21,22
+
+This should create /dev/ws2812, to be used by the example python script
+ws2812_draiveris_test.py
 
 Alternatively use the upload.sh script, which takes some shortcuts ...
 

@@ -106,9 +106,9 @@ void led_bit_1_i(void)
 void led_bit_0_i(void)
 {
     // good: 3L12H .. 5L12H 4L11H
-    // bad: 2L12H 8L12H 6L12H 4L8H 4L10H
-    // best: 4L12H (shortest, with one safety each)
-    SET_GPIOS_L(gpio_bit_mask);
+    // bad: 2L12H 8L12H 6L12H 4L8H 4L10H 3L11H
+    // almost: 4L12H has sporadic green flashes on the first led.
+    // best: 3L12H (shortest, with one safety each)
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
@@ -123,6 +123,7 @@ void led_bit_0_i(void)
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
 
+    SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
@@ -154,7 +155,6 @@ void led_bit_1(void)
 
 void led_bit_0(void)
 {
-    SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);

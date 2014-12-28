@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>  /* for put_user */
 #include <linux/fs.h>
 
+#define WS2812_MAJOR	152	/* use a LOCAL/EXPERIMENTAL major for now */
 
 #define sysRegRead(phys) 	 (*(volatile u32 *)KSEG1ADDR(phys))
 #define sysRegWrite(phys, val)	((*(volatile u32 *)KSEG1ADDR(phys)) = (val))
@@ -52,6 +53,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Saulius Lukse saulius.lukse@gmail.com; Juergen Weigert juewei@fabfolk.com");
 MODULE_DESCRIPTION("Bitbang GPIO driver for multiple WS2812 led chains");
+MODULE_ALIAS_CHARDEV_MAJOR(WS2812_MAJOR);
 
 
 #define GPIO_NUMBER_DEFAULT 20
@@ -271,7 +273,6 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
  * Global variables are declared as static, so are global within the file. 
  */
 
-static int Major;   /* Major number assigned to our device driver */
 static int Device_Open = 0; /* Is device open?  
          * Used to prevent multiple access to device */
 static char msg[BUF_LEN]; /* The msg the device will give when asked */
@@ -284,15 +285,18 @@ static struct file_operations fops = {
   .release = device_release
 };
 
+// we must create *and remove* device classes properly, otherwise we get horrible 
+// kernel stack backtraces.
+static struct class *ws2812_class;
 
 int init_module(void)
 { 
-  Major = register_chrdev(0, DEVICE_NAME, &fops);
-
-  if (Major < 0) {
-    printk(KERN_ALERT "Registering char device failed with %d\n", Major);
-    return Major;
-  }
+  int r;
+  if ((r = register_chrdev(WS2812_MAJOR, DEVICE_NAME, &fops)))
+    {
+      printk(KERN_ALERT "Registering char device major=%d failed with %d\n", WS2812_MAJOR, r);
+      return r;
+    }
 
   if (gpio_count > GPIO_LIST_MAX)
     {
@@ -346,12 +350,19 @@ int init_module(void)
     }
 
   printk(KERN_INFO "Build: %s %s\n", __DATE__, __TIME__);
-  printk(KERN_INFO "Major = %d\n", Major);
+  printk(KERN_INFO "Major = %d\n", WS2812_MAJOR);
   if (gpios) printk(KERN_INFO "gpios='%s'\n", gpios);
   printk(KERN_INFO "Base GPIO number: %d\n", gpio_number);
   printk(KERN_INFO "Number of led chains: gpio_count=%d\n", gpio_count);
   printk(KERN_INFO "Leds per chain: %d\n", leds_per_chain);
   printk(KERN_INFO "Inverted: %d\n", inverted);
+
+  ws2812_class = class_create(THIS_MODULE, DEVICE_NAME);
+  if (!device_create(ws2812_class, NULL, MKDEV(WS2812_MAJOR, 0), NULL, DEVICE_NAME ))
+    {
+      printk(KERN_ALERT "device_create failed. Try 'mknod /dev/%s c %d 0'.\n", DEVICE_NAME, WS2812_MAJOR);
+      // return -ENXIO;		// better continue anyway...
+    }
 
   return SUCCESS;
 }
@@ -362,7 +373,11 @@ int init_module(void)
  */
 void cleanup_module(void)
 {  
-  unregister_chrdev(Major, DEVICE_NAME);
+  // if we don't survive this, sysfs remains in a broken state. 
+  // You will see later: sysfs: cannot create duplicate filename '/class/ws2812'
+  device_destroy(ws2812_class, MKDEV(WS2812_MAJOR,0));
+  class_destroy(ws2812_class);
+  unregister_chrdev(WS2812_MAJOR, DEVICE_NAME);
   printk(KERN_ALERT "Bye, that's all.\n");
 }
 

@@ -2,14 +2,15 @@
 # FROM https://github.com/Lukse/carambola2_ws2812_driver/blob/master/Makefile
 # 
 # insmod ws2812_draiveris gpio_number=22
-# mknod /dev/ws2812 c 253 0
+# mknod /dev/ws2812 c 152 0
 
 import os, time
 
-os.system("insmod ws2812_draiveris gpio_number=20 inverted=1")
-os.system("mknod /dev/ws2812 c 253 0")
+os.system("insmod ws2812-draiveris gpios=20,21,22 inverted=1")
+# os.system("mknod /dev/ws2812 c 152 0")
 dev = os.open("/dev/ws2812", os.O_RDWR)
 #       green  red  blue
+
 
 while True:
   for i in range(30):

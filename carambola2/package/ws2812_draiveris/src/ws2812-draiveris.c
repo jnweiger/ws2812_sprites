@@ -57,23 +57,23 @@ MODULE_DESCRIPTION("Bitbang GPIO driver for multiple WS2812 led chains");
 #define GPIO_NUMBER_DEFAULT 20
 static int gpio_number = -1; // default -1 => GPIO_NUMBER_DEFAULT
 module_param(gpio_number, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(gpio_number, "GPIO number of first chain. Either use 'gpio_number=FIRST led_chains=COUNT' or use 'gpios=FIRST,SECOND,THIRD,...'.");
+MODULE_PARM_DESC(gpio_number, "GPIO number of first chain. Either use 'gpio_number=FIRST gpio_count=COUNT' or use 'gpios=FIRST,SECOND,THIRD,...'.");
 
 static int inverted = 1; // default is 1 == inverted, good for 74HCT02 line drivers.
 module_param(inverted, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(inverted, "drive inverted outputs");
 
-static int led_chains = 3; // default is 3 == the board, I currently have.
-module_param(led_chains, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(led_chains, "use additional GPIOs if > 1.");
+static int gpio_count = 1; // default is 3 == the board, I currently have.
+module_param(gpio_count, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(gpio_count, "use additional GPIOs if > 1.");
 
-static int leds_per_chain = 90; // default is 3 == the board, I currently have.
+static int leds_per_chain = 90; // only used when gpio_count > 1.
 module_param(leds_per_chain, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(leds_per_chain, "start of next led chain");
 
 static char *gpios = NULL;
 module_param(gpios, charp, 0);
-MODULE_PARM_DESC(gpios, "Comma separated list of GPIO numbers. Either use this, or 'gpio_number= led_chains='.");
+MODULE_PARM_DESC(gpios, "Comma separated list of GPIO numbers. Either use this, or 'gpio_number= gpio_count='.");
 
 // define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
 // define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
@@ -81,7 +81,6 @@ MODULE_PARM_DESC(gpios, "Comma separated list of GPIO numbers. Either use this, 
 #define SET_GPIOS_L(gpio_bits)	sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits)
 
 #define GPIO_LIST_MAX	8	// not sure what a realistic limit is.
-static int gpios_used = 1;
 static u_int32_t gpio_list[GPIO_LIST_MAX];
 static int gpio_bit_mask;
 
@@ -294,9 +293,9 @@ int init_module(void)
     return Major;
   }
 
-  if (led_chains > GPIO_LIST_MAX)
+  if (gpio_count > GPIO_LIST_MAX)
     {
-      printk(KERN_ALERT "Error: led_chains=%d > MAX=%d\n", led_chains, GPIO_LIST_MAX);
+      printk(KERN_ALERT "Error: gpio_count=%d > MAX=%d\n", gpio_count, GPIO_LIST_MAX);
       return !SUCCESS;
     }
 
@@ -325,14 +324,13 @@ int init_module(void)
 	  idx++;
 	}
       gpio_number = gpio_list[0];
-      gpios_used = led_chains = idx;
+      gpio_count = idx;
     }
   else
     {
       int idx;
-      gpios_used = led_chains;
       // 3 chains: 7<<gpio_number
-      for (idx = gpio_number; idx < gpio_number+led_chains; idx++)
+      for (idx = gpio_number; idx < gpio_number+gpio_count; idx++)
         {
           gpio_list[idx-gpio_number] = idx;
           gpio_bit[idx-gpio_number] = 1<<idx;
@@ -344,7 +342,7 @@ int init_module(void)
   printk(KERN_INFO "Major = %d\n", Major);
   if (gpios) printk(KERN_INFO "gpios='%s'\n", gpios);
   printk(KERN_INFO "Base GPIO number: %d\n", gpio_number);
-  printk(KERN_INFO "Number of led chains: %d\n", led_chains);
+  printk(KERN_INFO "Number of led chains: gpio_count=%d\n", gpio_count);
   printk(KERN_INFO "Leds per chain: %d\n", leds_per_chain);
   printk(KERN_INFO "Inverted: %d\n", inverted);
 

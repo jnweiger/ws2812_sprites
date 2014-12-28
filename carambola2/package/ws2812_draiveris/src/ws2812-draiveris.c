@@ -54,9 +54,10 @@ MODULE_AUTHOR("Saulius Lukse saulius.lukse@gmail.com; Juergen Weigert juewei@fab
 MODULE_DESCRIPTION("Bitbang GPIO driver for multiple WS2812 led chains");
 
 
-static int gpio_number = 20; // default is nr 20
+#define GPIO_NUMBER_DEFAULT 20
+static int gpio_number = -1; // default -1 => GPIO_NUMBER_DEFAULT
 module_param(gpio_number, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(gpio_number, "GPIO number of first chain");
+MODULE_PARM_DESC(gpio_number, "GPIO number of first chain. Either use 'gpio_number=FIRST led_chains=COUNT' or use 'gpios=FIRST,SECOND,THIRD,...'.");
 
 static int inverted = 1; // default is 1 == inverted, good for 74HCT02 line drivers.
 module_param(inverted, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -70,11 +71,18 @@ static int leds_per_chain = 90; // default is 3 == the board, I currently have.
 module_param(leds_per_chain, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(leds_per_chain, "start of next led chain");
 
+static char *gpios = NULL;
+module_param(gpios, charp, 0);
+MODULE_PARM_DESC(gpios, "Comma separated list of GPIO numbers. Either use this, or 'gpio_number= led_chains='.");
+
 // define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
 // define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
 #define SET_GPIOS_H(gpio_bits)	sysRegWrite(SYS_REG_GPIO_SET, gpio_bits)
 #define SET_GPIOS_L(gpio_bits)	sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits)
 
+#define GPIO_LIST_MAX	8	// not sure what a realistic limit is.
+static int gpios_used = 1;
+static u_int32_t gpio_list[GPIO_LIST_MAX];
 static int gpio_bit_mask;
 
 void led_bit_1_i(void)
@@ -181,7 +189,6 @@ void update_leds(const char *buff, size_t len)
 
   unsigned long flags;
   long int i = 0;
-  int b = 0;
 
   sysRegWrite(SYS_REG_RST_WATCHDOG_TIMER, 1<<31); // Just in case set watchdog to timeout some time later
   // http://www.eeboard.com/wp-content/uploads/downloads/2013/08/AR9331.pdf
@@ -287,15 +294,60 @@ int init_module(void)
     return Major;
   }
 
+  if (led_chains > GPIO_LIST_MAX)
+    {
+      printk(KERN_ALERT "Error: led_chains=%d > MAX=%d\n", led_chains, GPIO_LIST_MAX);
+      return !SUCCESS;
+    }
+
+  if (gpios && gpio_number >= 0)
+    {
+      printk(KERN_ALERT "Error: specify either gpios='%s' or gpio_number=%d, not both\n", gpios, gpio_number);
+      return !SUCCESS;
+    }
+
+  gpio_bit_mask = 0;
+
+  if (gpios)
+    {
+      int idx = 0;
+      char *p = gpios;
+      while (*p)
+        {
+	  while (*p && (*p <'0' || *p >'9')) p++;
+	  if (kstrtou32(p, 0, gpio_list+idx))
+	    {
+              printk(KERN_ALERT "Error: cannot parse pos=%d at list of comma separated integers: gpios='%s'\n", p-gpios, gpios);
+              return !SUCCESS;
+	    }
+          gpio_bit[idx]  = 1<<gpio_list[idx];
+          gpio_bit_mask |= 1<<gpio_list[idx];
+	  idx++;
+	}
+      gpio_number = gpio_list[0];
+      gpios_used = led_chains = idx;
+    }
+  else
+    {
+      int idx;
+      gpios_used = led_chains;
+      // 3 chains: 7<<gpio_number
+      for (idx = gpio_number; idx < gpio_number+led_chains; idx++)
+        {
+          gpio_list[idx-gpio_number] = idx;
+          gpio_bit[idx-gpio_number] = 1<<idx;
+          gpio_bit_mask |= 1<<idx;
+        }
+    }
+
   printk(KERN_INFO "Build: %s %s\n", __DATE__, __TIME__);
   printk(KERN_INFO "Major = %d\n", Major);
-  printk(KERN_INFO "GPIO number: %d\n", gpio_number);
-  printk(KERN_INFO "Inverted: %d\n", inverted);
+  if (gpios) printk(KERN_INFO "gpios='%s'\n", gpios);
+  printk(KERN_INFO "Base GPIO number: %d\n", gpio_number);
   printk(KERN_INFO "Number of led chains: %d\n", led_chains);
   printk(KERN_INFO "Leds per chain: %d\n", leds_per_chain);
+  printk(KERN_INFO "Inverted: %d\n", inverted);
 
-  // 3 chains: 7<<gpio_number
-  gpio_bit_mask = ((1<<led_chains)-1)<<gpio_number;
   return SUCCESS;
 }
 

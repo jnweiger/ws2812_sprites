@@ -10,7 +10,11 @@
  * 
  * parameters: 
  *	gpio_number=20		# set base number. 
- *	inverted=1		# new: allow use of inverters as line drivers.
+ *	gpio_count=3		# default: 1, enable multiple outputs, counting from gpio_number.
+ *	gpios=20,21,22		# explicitly specify where the led_strips are connected.
+ *      leds_per_gpio		# length of the led strips.
+ *	inverted=1		# have inverting line drivers at the GPIOs
+ *
  */
 #include <linux/init.h>
 #include <linux/module.h>	/* Needed by all modules */
@@ -28,7 +32,8 @@
 #include <asm/uaccess.h>  /* for put_user */
 #include <linux/fs.h>
 
-#define WS2812_MAJOR	152	/* use a LOCAL/EXPERIMENTAL major for now */
+#define LED_STRIPS_SEQUENTIAL	1	/* 0: PARALLEL: one set of values for all outputs */
+#define WS2812_MAJOR		152	/* use a LOCAL/EXPERIMENTAL major for now */
 
 #define sysRegRead(phys) 	 (*(volatile u32 *)KSEG1ADDR(phys))
 #define sysRegWrite(phys, val)	((*(volatile u32 *)KSEG1ADDR(phys)) = (val))
@@ -69,9 +74,9 @@ static int gpio_count = 1; // default is 3 == the board, I currently have.
 module_param(gpio_count, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(gpio_count, "use additional GPIOs if > 1.");
 
-static int leds_per_chain = 90; // only used when gpio_count > 1.
-module_param(leds_per_chain, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(leds_per_chain, "start of next led chain");
+static int leds_per_gpio = 90; // only used when gpio_count > 1.
+module_param(leds_per_gpio, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(leds_per_gpio, "start of next led chain");
 
 static char *gpios = NULL;
 module_param(gpios, charp, 0);
@@ -87,25 +92,39 @@ static u_int32_t gpio_list[GPIO_LIST_MAX];
 static u_int32_t gpio_bit[GPIO_LIST_MAX];
 static int gpio_bit_mask;
 
-void led_bit_1_i(void)
+// led_bits_m_i() sends a pulse to multiple GPIO pins at once. Inverted output.
+// The gpio_early_mask indicates which GPIO see a short pulse (aka low value).
+// The gpio_early_mask must be a subset of gpio_bit_mask.
+void led_bits_m_i(u_int32_t gpio_early_mask)
 {
-    // good: 12L3H .. 12L8H 11L4H .. 16L4H
-    // bad:  12L2H 10L4H
-    // best: 12L4H (shortest, with one safety each)
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
+    // High value patterns:
+    //  good: 12L3H .. 12L8H 11L4H .. 16L4H
+    //  bad:  12L2H 10L4H
+    //  best: 12L4H (shortest, with one safety each)
 
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
+    // Low value patterns:
+    //  good: 3L12H .. 5L12H 4L11H
+    //  bad: 2L12H 8L12H 6L12H 4L8H 4L10H 3L11H
+    //  almost: 4L12H has sporadic green flashes on the first led.
+    //  best: 3L12H (shortest, with one safety each)
 
+    // Tested with LED_STRIPS_SEQUENTIAL
+    // good: 3/9/4 3/8/4 
+    // almost: 3/7/4	sporadic flicker at led 70..90 of first chain.
+    // almost: 3/8/3	sporadic flicker at led 50..90 of all chains.
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_H(gpio_early_mask);
+
+    SET_GPIOS_H(gpio_early_mask);
+    SET_GPIOS_H(gpio_early_mask);
+    SET_GPIOS_H(gpio_early_mask);
+    SET_GPIOS_H(gpio_early_mask);
+
+    SET_GPIOS_H(gpio_early_mask);
+    SET_GPIOS_H(gpio_early_mask);
+    SET_GPIOS_H(gpio_early_mask);
 
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
@@ -113,84 +132,43 @@ void led_bit_1_i(void)
     SET_GPIOS_H(gpio_bit_mask);
 }
 
-void led_bit_0_i(void)
-{
-    // good: 3L12H .. 5L12H 4L11H
-    // bad: 2L12H 8L12H 6L12H 4L8H 4L10H 3L11H
-    // almost: 4L12H has sporadic green flashes on the first led.
-    // best: 3L12H (shortest, with one safety each)
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-}
-
-
-void led_bit_1(void)
+// led_bits_m() sends a pulse to multiple GPIO pins at once. Non-inverted output.
+// The gpio_early_mask indicates which GPIO see a short pulse (aka low value).
+// The gpio_early_mask must be a subset of gpio_bit_mask.
+void led_bits_m(u_int32_t gpio_early_mask)
 {
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_L(gpio_early_mask);
 
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_L(gpio_early_mask);
+    SET_GPIOS_L(gpio_early_mask);
+    SET_GPIOS_L(gpio_early_mask);
+    SET_GPIOS_L(gpio_early_mask);
 
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_L(gpio_early_mask);
+    SET_GPIOS_L(gpio_early_mask);
+    SET_GPIOS_L(gpio_early_mask);
+    SET_GPIOS_L(gpio_early_mask);
 
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
 }
-
-void led_bit_0(void)
-{
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-    SET_GPIOS_H(gpio_bit_mask);
-
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-    SET_GPIOS_L(gpio_bit_mask);
-}
-
 
 void update_leds(const char *buff, size_t len)
 {
-
   unsigned long flags;
   long int i = 0;
+  int gpio_used = gpio_count;
+  int stride = 3 * leds_per_gpio;
+
+  static DEFINE_SPINLOCK(critical);
+
+  if (stride > len) stride = len;
+  if (len < gpio_used * stride) gpio_used = (int)(len/stride)+1;
 
   sysRegWrite(SYS_REG_RST_WATCHDOG_TIMER, 1<<31); // Just in case set watchdog to timeout some time later
   // http://www.eeboard.com/wp-content/uploads/downloads/2013/08/AR9331.pdf
@@ -201,6 +179,7 @@ void update_leds(const char *buff, size_t len)
 
   if (inverted)
     {
+
       // wait 65uS
       for(i=0;i<1000;i++)
       {
@@ -209,20 +188,38 @@ void update_leds(const char *buff, size_t len)
       }
 
 
-      static DEFINE_SPINLOCK(critical);
       spin_lock_irqsave(&critical, flags);
-      for (i = 0; i<len; i++)
+      for (i = 0; i < stride; i++)
       {
+#if LED_STRIPS_SEQUENTIAL
+        int color_bit;
+	int color_bit_mask = 0x80;
+
+	for (color_bit = 8; color_bit > 0; color_bit--)
+	  {
+	    u_int32_t low_gpios = 0;
+	    int idx;
+	    int pos = i;
+	    for (idx = 0; idx < gpio_used; idx++)
+	      {
+		if (pos >= len || !(buff[pos] & color_bit_mask)) low_gpios |= gpio_bit[idx];
+		pos += stride;
+	      }
+	    led_bits_m_i(low_gpios);
+	    color_bit_mask >>= 1;
+	  }
+#else 
         unsigned char c = buff[i];
 
-        if (c & 0x80) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x40) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x20) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x10) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x08) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x04) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x02) led_bit_1_i(); else led_bit_0_i();
-        if (c & 0x01) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x80) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x40) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x20) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x10) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x08) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x04) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x02) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x01) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+#endif
       }
       spin_unlock_irqrestore(&critical, flags);
     }
@@ -235,20 +232,38 @@ void update_leds(const char *buff, size_t len)
 	SET_GPIOS_L(gpio_bit_mask);
       }
 
-      static DEFINE_SPINLOCK(critical);
       spin_lock_irqsave(&critical, flags);
-      for (i = 0; i<len; i++)
+      for (i = 0; i < stride; i++)
       {
+#if LED_STRIPS_SEQUENTIAL
+        int color_bit;
+	int color_bit_mask = 0x80;
+
+	for (color_bit = 8; color_bit > 0; color_bit--)
+	  {
+	    u_int32_t low_gpios = 0;
+	    int idx;
+	    int pos = i;
+	    for (idx = 0; idx < gpio_used; idx++)
+	      {
+		if (pos >= len || !(buff[pos] & color_bit_mask)) low_gpios |= gpio_bit[idx];
+		pos += stride;
+	      }
+	    led_bits_m(low_gpios);
+	    color_bit_mask >>= 1;
+	  }
+#else 
         unsigned char c = buff[i];
 
-        if (c & 0x80) led_bit_1(); else led_bit_0();
-        if (c & 0x40) led_bit_1(); else led_bit_0();
-        if (c & 0x20) led_bit_1(); else led_bit_0();
-        if (c & 0x10) led_bit_1(); else led_bit_0();
-        if (c & 0x08) led_bit_1(); else led_bit_0();
-        if (c & 0x04) led_bit_1(); else led_bit_0();
-        if (c & 0x02) led_bit_1(); else led_bit_0();
-        if (c & 0x01) led_bit_1(); else led_bit_0();
+        if (c & 0x80) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x40) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x20) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x10) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x08) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x04) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x02) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+        if (c & 0x01) led_bits_m(0); else led_bits_m(gpio_bit_mask);
+#endif
       }
       spin_unlock_irqrestore(&critical, flags);
     }
@@ -315,7 +330,6 @@ int init_module(void)
   if (gpios)
     {
       int idx = 0;
-      int r;
       char *p = gpios;
       while (*p)
         {
@@ -350,11 +364,10 @@ int init_module(void)
     }
 
   printk(KERN_INFO "Build: %s %s\n", __DATE__, __TIME__);
-  printk(KERN_INFO "Major = %d\n", WS2812_MAJOR);
+  printk(KERN_INFO "Major=%d  device=/dev/%s\n", WS2812_MAJOR, DEVICE_NAME);
   if (gpios) printk(KERN_INFO "gpios='%s'\n", gpios);
-  printk(KERN_INFO "Base GPIO number: %d\n", gpio_number);
-  printk(KERN_INFO "Number of led chains: gpio_count=%d\n", gpio_count);
-  printk(KERN_INFO "Leds per chain: %d\n", leds_per_chain);
+  printk(KERN_INFO "Base GPIO number: %d, gpio_count=%d\n", gpio_number, gpio_count);
+  printk(KERN_INFO "Leds per chain: %d\n", leds_per_gpio);
   printk(KERN_INFO "Inverted: %d\n", inverted);
 
   ws2812_class = class_create(THIS_MODULE, DEVICE_NAME);
@@ -470,6 +483,7 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
 }
 
 
+// To reach all connected leds send: len = gpio_count * leds_per_gpio * 3 bytes
 static ssize_t device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
 {
   update_leds(buff, len);

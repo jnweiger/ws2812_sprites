@@ -69,64 +69,96 @@ MODULE_PARM_DESC(inverted, "drive inverted outputs");
 #define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
 #define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
 
-void led_bit(int bit)
+static int gpio_bit_mask;
+
+void led_bit_1_i(void)
 {
-  if (bit==0)
-  {
-    // high (3.3us)
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
 
-    // low (7us)
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
 
-    //sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-  }
-  else
-  {
-    // high (7us)
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
 
-    // low (3.3us)
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-    // sysRegWrite(SYS_REG_GPIO_CLEAR, 1<<gpio_number);
-
-    //sysRegWrite(SYS_REG_GPIO_SET, 1<<gpio_number);
-  }
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
 }
 
+void led_bit_0_i(void)
+{
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+}
+
+
+void led_bit_1(void)
+{
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+}
+
+void led_bit_0(void)
+{
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+    SET_GPIOS_H(gpio_bit_mask);
+
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
+}
 
 
 void update_leds(const char *buff, size_t len)
@@ -140,17 +172,16 @@ void update_leds(const char *buff, size_t len)
   // http://www.eeboard.com/wp-content/uploads/downloads/2013/08/AR9331.pdf
   // p65: SYS_REG_GPIO_OE 0: Enables the driver to be used as input mechanism; 1: Enables the output driver
   i = sysRegRead(SYS_REG_GPIO_OE);
-  sysRegWrite(SYS_REG_GPIO_OE, i|(1<<gpio_number)); 	// output enable to PIN20
+  sysRegWrite(SYS_REG_GPIO_OE, i|gpio_bit_mask); 	// output enable to PIN20
 
 
   if (inverted)
     {
-      SET_GPIOS_L(1<<gpio_number);
       // wait 65uS
       for(i=0;i<1000;i++)
       {
 	volatile int j = i;
-	SET_GPIOS_H(1<<gpio_number);
+	SET_GPIOS_H(gpio_bit_mask);
       }
 
 
@@ -158,37 +189,43 @@ void update_leds(const char *buff, size_t len)
       spin_lock_irqsave(&critical, flags);
       for (i = 0; i<len; i++)
       {
-	for(b = 7; b>=0; b--)
-	  if (buff[i] & (1 << b))
-	    led_bit(0);
-	else
-	    led_bit(1);
+        unsigned char c = buff[i];
+
+        if (c & 0x80) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x40) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x20) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x10) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x08) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x04) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x02) led_bit_1_i(); else led_bit_0_i();
+        if (c & 0x01) led_bit_1_i(); else led_bit_0_i();
       }
-      SET_GPIOS_H(1<<gpio_number);
       spin_unlock_irqrestore(&critical, flags);
     }
   else
     {
-      SET_GPIOS_H(1<<gpio_number);
       // wait 65uS
       for(i=0;i<1000;i++)
       {
 	volatile int j = i;
-	SET_GPIOS_L(1<<gpio_number);
+	SET_GPIOS_L(gpio_bit_mask);
       }
-
 
       static DEFINE_SPINLOCK(critical);
       spin_lock_irqsave(&critical, flags);
       for (i = 0; i<len; i++)
       {
-	for(b = 7; b>=0; b--)
-	  if (buff[i] & (1 << b))
-	    led_bit(1);
-	else
-	    led_bit(0);
+        unsigned char c = buff[i];
+
+        if (c & 0x80) led_bit_1(); else led_bit_0();
+        if (c & 0x40) led_bit_1(); else led_bit_0();
+        if (c & 0x20) led_bit_1(); else led_bit_0();
+        if (c & 0x10) led_bit_1(); else led_bit_0();
+        if (c & 0x08) led_bit_1(); else led_bit_0();
+        if (c & 0x04) led_bit_1(); else led_bit_0();
+        if (c & 0x02) led_bit_1(); else led_bit_0();
+        if (c & 0x01) led_bit_1(); else led_bit_0();
       }
-      SET_GPIOS_L(1<<gpio_number);
       spin_unlock_irqrestore(&critical, flags);
     }
 }
@@ -240,6 +277,7 @@ int init_module(void)
   printk(KERN_INFO "GPIO number: %d\n", gpio_number);
   printk(KERN_INFO "Inverted: %d\n", inverted);
 
+  gpio_bit_mask = 7<<gpio_number;
   return SUCCESS;
 }
 

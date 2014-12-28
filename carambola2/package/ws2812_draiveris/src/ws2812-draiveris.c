@@ -51,28 +51,37 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Saulius Lukse saulius.lukse@gmail.com; Juergen Weigert juewei@fabfolk.com");
-MODULE_DESCRIPTION("Bitbang GPIO driver for ws2812");
+MODULE_DESCRIPTION("Bitbang GPIO driver for multiple WS2812 led chains");
 
-
-//static char *mystring = "blah";
-//module_param(mystring, charp, 0000);
-//MODULE_PARM_DESC(mystring, "A character string");
 
 static int gpio_number = 20; // default is nr 20
 module_param(gpio_number, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(gpio_number, "GPIO number");
+MODULE_PARM_DESC(gpio_number, "GPIO number of first chain");
 
 static int inverted = 1; // default is 1 == inverted, good for 74HCT02 line drivers.
 module_param(inverted, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(inverted, "drive inverted outputs");
 
-#define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
-#define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
+static int led_chains = 3; // default is 3 == the board, I currently have.
+module_param(led_chains, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(led_chains, "use additional GPIOs if > 1.");
+
+static int leds_per_chain = 90; // default is 3 == the board, I currently have.
+module_param(leds_per_chain, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(leds_per_chain, "start of next led chain");
+
+// define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
+// define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
+#define SET_GPIOS_H(gpio_bits)	sysRegWrite(SYS_REG_GPIO_SET, gpio_bits)
+#define SET_GPIOS_L(gpio_bits)	sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits)
 
 static int gpio_bit_mask;
 
 void led_bit_1_i(void)
 {
+    // good: 12L3H .. 12L8H 11L4H .. 16L4H
+    // bad:  12L2H 10L4H
+    // best: 12L4H (shortest, with one safety each)
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
@@ -88,6 +97,7 @@ void led_bit_1_i(void)
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
 
+    SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
@@ -95,6 +105,10 @@ void led_bit_1_i(void)
 
 void led_bit_0_i(void)
 {
+    // good: 3L12H .. 5L12H 4L11H
+    // bad: 2L12H 8L12H 6L12H 4L8H 4L10H
+    // best: 4L12H (shortest, with one safety each)
+    SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
@@ -109,7 +123,6 @@ void led_bit_0_i(void)
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
 
-    SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
@@ -136,10 +149,12 @@ void led_bit_1(void)
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
     SET_GPIOS_L(gpio_bit_mask);
+    SET_GPIOS_L(gpio_bit_mask);
 }
 
 void led_bit_0(void)
 {
+    SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
     SET_GPIOS_H(gpio_bit_mask);
@@ -276,8 +291,11 @@ int init_module(void)
   printk(KERN_INFO "Major = %d\n", Major);
   printk(KERN_INFO "GPIO number: %d\n", gpio_number);
   printk(KERN_INFO "Inverted: %d\n", inverted);
+  printk(KERN_INFO "Number of led chains: %d\n", led_chains);
+  printk(KERN_INFO "Leds per chain: %d\n", leds_per_chain);
 
-  gpio_bit_mask = 7<<gpio_number;
+  // 3 chains: 7<<gpio_number
+  gpio_bit_mask = ((1<<led_chains)-1)<<gpio_number;
   return SUCCESS;
 }
 

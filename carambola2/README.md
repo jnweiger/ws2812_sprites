@@ -1,3 +1,32 @@
+Hardware
+========
+
+A Carambola2 has the same Atheros AR9331 Chipset as the TL-WR703N or WR3070 Routers.
+Note that while the Carambola2 breakout board has very nice connectors to access *many* GPIO pins, 
+most of the breakout board you bought remains unused: 2x ETH, 2x USB. The line driver 74HTC
+
+
+Other Options
+-------------
+
+ * A naked Carambola2 without breakout board. This is much smaller, less expensive, but lacks a 5V -> 3.3V 
+   regulator and needs an antenna and again the 74HTC02 needs to be mounted somewhere.
+
+ * A TL-WR703N Nano Router. Has both the voltage regulator and an onboard antenna. It has 1x ETH, 
+   1x USB that remain unused. If ordered from China, this should be around 20 EUR, beating the naked Carambola2.
+   Flash instructions for these routers are here: http://wiki.openwrt.org/toh/tp-link/tl-wr703n
+   Disadvantage: Not many GPIO pins have been located by now. Soldering to them is difficult. Difficult to 
+   find (everybody sells the 702, which does not work).
+   Advantages: Comes in a tiny housing that has room for a 74HTC02, and the Micro-USB connecter that 
+   serves as power supply has 3 unused lines. These could be my 3 line drivers, yeah!
+
+ * HLK RM04 is a similar form factor to the naked Carambola2, contains the 5V -> 3.3V regulator, but
+   RALINK-RT5350F (360 Mhz), 16MB RAM only.
+   http://www.hlktech.net/product_detail.php?ProId=39 
+   http://wiki.openwrt.org/toh/hilink/hlk-rm04
+   Seen on Ebay for 11 EUR, seen on aliexpress for 17 EUR.
+
+
 python implementation
 =====================
 	

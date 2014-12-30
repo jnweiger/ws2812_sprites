@@ -15,8 +15,8 @@ Other Options
  * A TL-WR703N Nano Router. Has both the voltage regulator and an onboard antenna. It has 1x ETH, 
    1x USB that remain unused. If ordered from China, this should be around 20 EUR, beating the naked Carambola2.
    Flash instructions for these routers are here: http://wiki.openwrt.org/toh/tp-link/tl-wr703n
-   Disadvantage: Not many GPIO pins have been located by now. Soldering to them is difficult. Difficult to 
-   find (everybody sells the 702, which does not work).
+   Disadvantage: Not many GPIO pins have been located by now. Soldering to them is a challenge. 
+   Difficult to find (everybody sells wr702, which does not work). Check for TL-MR3020.
    Advantages: Comes in a tiny housing that has room for a 74HTC02, and the Micro-USB connecter that 
    serves as power supply has 3 unused lines. These could be my 3 line drivers, yeah!
 

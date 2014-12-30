@@ -9,7 +9,6 @@ import os, time
 os.system("insmod ws2812-draiveris gpios=20,21,22 inverted=1")
 # os.system("mknod /dev/ws2812 c 152 0")
 dev = os.open("/dev/ws2812", os.O_RDWR)
-#       green  red  blue
 
 bgval=5
 
@@ -72,8 +71,8 @@ class walker:
       if self.ybounce: self.panel_hh -1
       else: iy = 0
     o = 3 * (ix + iy * self.panel_w)
-    rgb[o+0] += g
-    rgb[o+1] += r
+    rgb[o+0] += r
+    rgb[o+1] += g
     rgb[o+2] += b
     if rgb[o+0] > 255: rgb[o+0] = 255
     if rgb[o+1] > 255: rgb[o+1] = 255
@@ -93,7 +92,7 @@ class walker:
 def xy_pol(val, degree):
   """ same as rgb_hue, but for 2D-polar coordinates
       0:x=val, 90:y=val, ...
-      using an 'good-enough-octagon', instead of proper trigonometry.
+      Using a 'good-enough-octagon' instead of proper trigonometry.
   """
   wheel = ( [ val,0], [ 0.7*val, 0.7*val], [0, val], [-0.7*val, 0.7*val], 
             [-val,0], [-0.7*val,-0.7*val], [0,-val], [ 0.7*val,-0.7*val], [val,0] )

@@ -164,6 +164,8 @@ void update_leds(const char *buff, size_t len)
   long int i = 0;
   int gpio_used = gpio_count;
   int stride = 3 * leds_per_gpio;
+  static int grb_increment[3] = { -1, 2, 2 };		// swap red and green: r g b -> g r b
+  int grb_idx = 0;					// counting: 1 0 2  4 3 5  7 6 8  ...
 
   static DEFINE_SPINLOCK(critical);
 
@@ -189,7 +191,7 @@ void update_leds(const char *buff, size_t len)
 
 
       spin_lock_irqsave(&critical, flags);
-      for (i = 0; i < stride; i++)
+      for (i = 1; i < stride; i += grb_increment[grb_idx++])
       {
 #if LED_STRIPS_SEQUENTIAL
         int color_bit;
@@ -220,6 +222,7 @@ void update_leds(const char *buff, size_t len)
         if (c & 0x02) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
         if (c & 0x01) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
 #endif
+        if (grb_idx >= 3) grb_idx = 0;
       }
       spin_unlock_irqrestore(&critical, flags);
     }
@@ -233,7 +236,7 @@ void update_leds(const char *buff, size_t len)
       }
 
       spin_lock_irqsave(&critical, flags);
-      for (i = 0; i < stride; i++)
+      for (i = 1; i < stride; i += grb_increment[grb_idx++])
       {
 #if LED_STRIPS_SEQUENTIAL
         int color_bit;
@@ -264,6 +267,7 @@ void update_leds(const char *buff, size_t len)
         if (c & 0x02) led_bits_m(0); else led_bits_m(gpio_bit_mask);
         if (c & 0x01) led_bits_m(0); else led_bits_m(gpio_bit_mask);
 #endif
+        if (grb_idx >= 3) grb_idx = 0;
       }
       spin_unlock_irqrestore(&critical, flags);
     }

@@ -142,4 +142,4 @@ while True:
   if deg > 360: deg -= 360 
   for w in walkers: w.walk(data)
   os.write(dev, bytearray(data))
-  time.sleep(0.01)
+  time.sleep(0.02)

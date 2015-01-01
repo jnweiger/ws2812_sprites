@@ -40,19 +40,7 @@
  * - view.moved: triggers a full refresh: It should move the ledpanel contents 
  *   locally and only send refresh requests for missing parts.
  */
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <fcntl.h>	// open()
-#include <netdb.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#ifdef HAVE_ZLIB
-# include <zlib.h>	// BuildRequires: zlib-devel
-#endif
+#include <tiny_vncview.h>
 
 typedef struct VncView
 {
@@ -102,22 +90,6 @@ typedef struct VncConnectionPrivate
   } lastUpdateRequest;
 
 } VncConnectionPrivate;
-
-typedef struct VncConnection
-{
-  int fd;
-
-  int fifo;
-
-  int msec_refresh;
-  VncView view;
-
-  int (*expose_cb)(VncView *view, unsigned char *rgb, int stride, void *expose_cb_data);
-  void *expose_cb_data;
-
-  VncConnectionPrivate *priv;
-} VncConnection;
-
 
 // FROM /usr/include/glib-2.0/glib/gmacros.h
 #define FALSE (0)
@@ -182,14 +154,6 @@ VncConnection *connect_vnc_server(char *hostname, char *str_port)
   conn.priv = &priv;
   conn.fd = sfd;
   conn.msec_refresh = 200;
-  conn.fifo = -1;
-
-  if (getenv("VNC_TINY_CFG"))
-    {
-      char *fifo = getenv("VNC_TINY_CFG");
-      mkfifo(fifo, 0777);
-      conn.fifo = open(fifo, O_RDONLY|O_NONBLOCK);
-    }
   return &conn;
 }
 
@@ -427,6 +391,21 @@ int vnc_connection_perform_auth(VncConnection *conn)
   return TRUE;
 }
 
+static int vnc_connection_set_encodings(VncConnection *conn, int n_encoding, u_int32_t *encoding)
+{
+    int i;
+    char pad[1] = {0};
+    vnc_connection_write_u8(conn, VNC_CONNECTION_CLIENT_MESSAGE_SET_ENCODINGS);
+    vnc_connection_write(conn, pad, 1);
+    vnc_connection_write_u16(conn, n_encoding);
+    for (i = 0; i < n_encoding; i++) {
+        vnc_connection_write_s32(conn, encoding[i]);
+    }
+    vnc_connection_flush(conn);
+    return !vnc_connection_has_error(conn);
+}
+
+
 int vnc_connection_initialize(VncConnection *conn)
 {
   VncConnectionPrivate *priv = conn->priv;
@@ -495,6 +474,11 @@ int vnc_connection_initialize(VncConnection *conn)
     inflateInit(&priv->streams[i]);
   priv->strm = NULL;
 #endif
+
+  // vncdisplay.c:on_initialized()
+  u_int32_t encodings[] = { VNC_CONNECTION_ENCODING_RAW };	// , VNC_CONNECTION_ENCODING_COPY_RECT ;
+
+  vnc_connection_set_encodings(conn, 1, encodings);
 
   return TRUE;
 }
@@ -683,22 +667,7 @@ int vnc_connection_framebuffer_update_request(VncConnection *conn,
     return !vnc_connection_has_error(conn);
 }
 
-
-int vnc_connection_set_encodings(VncConnection *conn, int n_encoding, u_int32_t *encoding)
-{
-    int i;
-    char pad[1] = {0};
-    vnc_connection_write_u8(conn, VNC_CONNECTION_CLIENT_MESSAGE_SET_ENCODINGS);
-    vnc_connection_write(conn, pad, 1);
-    vnc_connection_write_u16(conn, n_encoding);
-    for (i = 0; i < n_encoding; i++) {
-        vnc_connection_write_s32(conn, encoding[i]);
-    }
-    vnc_connection_flush(conn);
-    return !vnc_connection_has_error(conn);
-}
-
-static int vnc_connection_server_message(VncConnection *conn)
+int vnc_connection_server_message(VncConnection *conn, int extra_fg)
 {
   int n;
   fd_set rfds;
@@ -897,63 +866,15 @@ int draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
   return TRUE;
 }
 
-
-int main(int ac, char **av)
+void vncview_moveto(VncConnection *conn, int x, int y)
 {
-  if (!av[1])
-    {
-      fprintf(stderr,
-"vnc_tiny_view connects your Arietta ledpanel to a remote X-Server.\n\
-\n\
-Usage:\n\
-  # On the X-Server HOST run a VNC server e.g. like this:\n\
-  x11vnc -clip 640x480x0x0 -cursor none -loop\n\
-\n\
-  # On Arietta:\n\
-  VNC_TINY_CFG=/tmp/fifo %s HOST [5900] &\n\
-\n\
-  # To reposition the viewport:\n\
-  echo 100 100 > /tmp/fifo\n", av[0]);
-      exit(0);
-    }
-
-#if 1
-  VncConnection *conn = connect_vnc_server(av[1], av[2]);	// hostname [port]
-  if (!vnc_connection_initialize(conn)) exit(8);
-  conn->view.x = 0;
-  conn->view.y = 0;
-  conn->view.w = 32;
-  conn->view.h = 32;
-
-  struct draw_ledpanel_data draw_ledpanel_data;
-  draw_ledpanel_data.lut = NULL;
-  draw_ledpanel_data.fd = open("/sys/class/ledpanel/rgb_buffer", O_WRONLY);
-  if (getenv("VNC_TINY_STDOUT") || draw_ledpanel_data.fd < 0)
-    {
-      conn->expose_cb = draw_ascii_art;
-    }
-  else
-    {
-      conn->expose_cb = draw_ledpanel;
-      conn->expose_cb_data = (void *)&draw_ledpanel_data;
-    }
-
-  // vncdisplay.c:on_initialized()
-  u_int32_t encodings[] = { VNC_CONNECTION_ENCODING_RAW };	// , VNC_CONNECTION_ENCODING_COPY_RECT };
-  vnc_connection_set_encodings(conn, 1, encodings);
-  // non-incremental to begin with.
-  vnc_connection_framebuffer_update_request(conn, 0, conn->view.x, conn->view.y, conn->view.w, conn->view.h);
-
-  while (vnc_connection_server_message(conn))
-    ;
-
-#else
-
-  char buf[32*32*3];
-  read_rgb_file(32, 32, av[1], buf);
-  // draw_ttyc8(32,32,buf,32);
-  draw_ttyramp(32,32,buf,32);
-#endif
-  return TRUE;
+  // fprintf(stderr, "View (%d,%d) moved from (%d,%d) to (%d,%d) \n", conn->view.w,conn->view.h,
+  //	conn->view.x,conn->view.y, x,y);
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x+conn->view.w > conn->priv->width)  x = conn->priv->width  - conn->view.w;
+  if (y+conn->view.h > conn->priv->height) y = conn->priv->height - conn->view.h;
+  if (x != conn->view.x || y != conn->view.y) conn->view.moved = 1;
+  conn->view.x = x; 
+  conn->view.y = y; 
 }
-

@@ -3,30 +3,31 @@
 -- Translated from python to lua. See ws2812_sprites.py
 -- (C) 2015, juewei@fablab.com
 --
+-- portability: 5.1 only has unpack(), 5.2 has both table.unpack() and unpack()
 
 socket=require('socket')
 require('class')
 
 os.execute("insmod ws2812-draiveris gpios=7,14,15 inverted=1")
 socket.sleep(0.5)	-- give udev time to create the device
-dev = io.open("/tmp/ws2812", "wb")
+dev = io.open("/dev/ws2812", "wb")
 dev:setvbuf("no")
 
-bgval=5
+bgval=3
 Walker = class({ panel_w=30, panel_h=9 })
 
 function Walker:init(dx, dy, r, g, b, args)
     -- optional prameters:
-    -- xbounce=False wraps left and right
-    -- ybounce=False wraps top and bottom
+    -- xbounce=false wraps left and right
+    -- ybounce=false wraps top and bottom
     
     if type(args) == 'table' then
-      xbounce, ybounce = args.xbounce, args.ybounce
+      self.xbounce, self.ybounce = args.xbounce, args.ybounce
       startx, starty = args.startx, args.starty
     end
-    self.x,self.y,self.dx,self.dy = startx or 0, starty or 0, dx,dy
+    self.dx,self.dy      = dx,dy
+    self.x,self.y        = startx or 0, starty or 0
     self.r,self.g,self.b = r,g,b
-    self.xbounce,self.ybounce = xbounce or false, ybounce or false
     if  dx >= self.panel_w or dx <= -self.panel_w then
       error("dx must be smaller than panel width="..self.panel_w)
     end
@@ -89,10 +90,10 @@ function Walker:_paint_pixel(rgb, ix, iy, bright)
     o = 3 * (ix + iy * self.panel_w)
     rgb[o+1] = rgb[o+1] + r
     rgb[o+2] = rgb[o+2] + g
-    rgb[o+2] = rgb[o+3] + b
+    rgb[o+3] = rgb[o+3] + b
     if rgb[o+1] > 255 then rgb[o+1] = 255 end
     if rgb[o+2] > 255 then rgb[o+2] = 255 end
-    if rgb[o+2] > 255 then rgb[o+3] = 255 end
+    if rgb[o+3] > 255 then rgb[o+3] = 255 end
 end
     
 function Walker:draw(rgb)
@@ -143,18 +144,18 @@ RotatingWalker = class(Walker)
 RotatingWalker.xy_deg = 0
 
 function RotatingWalker:advance()
-    rspeed=0.11
-    xspeed=-0.17
-    scale=0.15
-    self.xy_deg = (self.xy_deg+.8*rspeed) % 360
-    x,y = xy_pol(scale*rspeed, self.xy_deg)
-    self.x = self.x + x-xspeed
+    rspeed=0.85
+    xspeed=0.017
+    scale=0.06
+    self.xy_deg = (self.xy_deg+rspeed) % 360
+    x,y = xy_pol(scale, self.xy_deg)
+    self.x = self.x + x + xspeed
     self.y = self.y + y
 end
 
 walkers = {
-  Walker(0.2,0.1, 	100,0,0,  { xbounce=True, ybounce=True } ),
-  Walker(0.01,0.033, 	100,40,0, { ybounce=True } ),
+  Walker(0.2,0.1, 	100,0,0,  { xbounce=true, ybounce=true } ),
+  Walker(0.01,0.033, 	120,80,0, { ybounce=true } ),
   Walker(0.19,0.11, 	0,0,100),
   RotatingWalker(0.07,0.07, 	0,150,0)
 }
@@ -166,6 +167,6 @@ while true do
   deg = deg + .3
   if deg > 360 then deg = deg - 360 end
   for _,w in pairs(walkers) do w:walk(data) end
-  dev:write(string.char(table.unpack(data)))
+  dev:write(string.char(unpack(data)))
   socket.sleep(0.02)
 end

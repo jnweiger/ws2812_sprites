@@ -163,7 +163,16 @@ walkers = {
 deg=0
 while true do
   r,g,b = rgb_hue(bgval, deg)
-  data = {string.char(r,g,b):rep(30*9):byte(1, 3*30*90)} -- hack to rep() a table ..
+  if false then
+    -- this string conversion is expensive. The for loop below initializes data much cheaper.
+    -- overall system load is below 0.3 with the loop, and exceeds 0.4 with this hack.
+    data = {string.char(r,g,b):rep(30*9):byte(1, 3*30*90)} -- hack to rep() a table ..
+  else
+    data = {}
+    for i = 1,3*30*9,3 do
+      data[i+0], data[i+1], data[i+2] = r,g,b
+    end
+  end
   deg = deg + .3
   if deg > 360 then deg = deg - 360 end
   for _,w in pairs(walkers) do w:walk(data) end

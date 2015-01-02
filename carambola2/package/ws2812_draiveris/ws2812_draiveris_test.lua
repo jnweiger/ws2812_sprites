@@ -4,7 +4,7 @@
 -- (C) 2015, juewei@fablab.com
 --
 
-bit=require('bit')
+if bit32==nil then bit32=require('bit') end
 socket=require('socket')
 
 os.execute("insmod ws2812-draiveris gpios=7,14,15 inverted=1")
@@ -14,13 +14,12 @@ dev:setvbuf("no")
 
 function rep3(r,g,b, n)
   if n <= 0 then return "" end
-  s = string.char(r,g,b)
-  return string.rep(s,n)
+  return string.char(r,g,b):rep(n)
 end
 
 width=30
 val=5
-v_2=bit.rshift(val,2)
+v_2=bit32.rshift(val,2)
 
 while true do
 

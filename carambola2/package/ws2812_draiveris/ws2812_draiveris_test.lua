@@ -15,11 +15,7 @@ dev:setvbuf("no")
 function rep3(r,g,b, n)
   if n <= 0 then return "" end
   s = string.char(r,g,b)
-  ss = ""
-  for i = 1, n do
-    ss = ss .. s
-  end
-  return ss
+  return string.rep(s,n)
 end
 
 width=30

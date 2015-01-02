@@ -8,6 +8,7 @@ bit=require('bit')
 socket=require('socket')
 
 os.execute("insmod ws2812-draiveris gpios=7,14,15 inverted=1")
+socket.sleep(0.5)	-- give udev time to create the device
 dev = io.open("/dev/ws2812", "wb")
 dev:setvbuf("no")
 

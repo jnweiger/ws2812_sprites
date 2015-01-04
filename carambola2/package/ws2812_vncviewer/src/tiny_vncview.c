@@ -40,13 +40,7 @@
  * - view.moved: triggers a full refresh: It should move the ledpanel contents 
  *   locally and only send refresh requests for missing parts.
  */
-#include <tiny_vncview.h>
-
-typedef struct VncView
-{
-  int x, y, w, h;
-  int moved;	// FIXME: every move here currently triggers a full update.
-} VncView;
+#include "tiny_vncview.h"
 
 typedef struct VncPixelFormat
 {
@@ -788,81 +782,6 @@ int draw_ascii_art(VncView *view, unsigned char *rgb, int stride, void *data)
   rgb += view->x * 3;
   rgb += view->y * stride;
   draw_ttyc8(32,32,rgb,stride);
-  return TRUE;
-}
-
-struct draw_ledpanel_data
-{
-  int fd;
-  unsigned char *lut;
-};
-
-#ifdef USE_GAMMA_LUT
-// rg, gg, bg, are gamma values in the range of [-16..0..16], -16 is brightest, 0 is linear, 16 is darkest.
-unsigned char *mkgamma_lut(int rg, int gg, int bg)
-{
-  unsigned char *lut = (unsigned char *)calloc(3, 256);
-
-  unsigned int i;
-
-#define L_POW4(i)    ((i)*(i)*(i)/255*(i)/(255*255))
-#define L_POW3(i)    ((i)*(i)*(i)/        (255*255))
-#define L_POW2(i)        ((i)*(i)/        (255))
-
-#define L_RANGE(o,i)	(32-(o)+(i)*7/8)
-
-  if (rg < 0)
-    for (i = 0; i < 255; i++) lut[i+0*256] = L_RANGE(8, 255-((16+rg)*(255-i)-rg*L_POW2(255-i))/16);
-  else
-    for (i = 0; i < 255; i++) lut[i+0*256] = L_RANGE(8,     ((16-rg)*i      +rg*L_POW2(    i))/16);
-
-  if (gg < 0)
-    for (i = 0; i < 255; i++) lut[i+1*256] = L_RANGE(8, 255-((16+gg)*(255-i)-gg*L_POW2(255-i))/16);
-  else
-    for (i = 0; i < 255; i++) lut[i+1*256] = L_RANGE(8,     ((16-gg)*i      +gg*L_POW2(    i))/16);
-
-  if (bg < 0)
-    for (i = 0; i < 255; i++) lut[i+2*256] = L_RANGE(8, 255-((16+bg)*(255-i)-bg*L_POW2(255-i))/16);
-  else
-    for (i = 0; i < 255; i++) lut[i+2*256] = L_RANGE(8,     ((16-bg)*i      +bg*L_POW2(    i))/16);
-
-  return lut;
-}
-#endif
-
-int draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
-{
-  // FIXME: need gamma curves here!
-  struct draw_ledpanel_data *d = (struct draw_ledpanel_data *)data;
-  static unsigned char led[32*32*3];
-  unsigned char *p = led;
-  int h = 32;
-
-  rgb += view->x * 3;
-  rgb += view->y * stride;
-
-#ifdef USE_GAMMA_LUT
-  // with only 7 values, all on the bright side, gamma correction is hard.
-  if (!d->lut) d->lut = mkgamma_lut(8,8,8);
-#endif
-  while (h-- > 0)
-    {
-#ifdef USE_GAMMA_LUT
-      int x;
-      for (x = 0; x < 3*32; x+=3)
-        {
-          p[x+0] = d->lut[rgb[x+0]+0*256];
-          p[x+1] = d->lut[rgb[x+1]+1*256];
-          p[x+2] = d->lut[rgb[x+2]+2*256];
-        }
-#else
-      memcpy(p, rgb, 3*32);
-#endif
-      rgb += stride;
-      p += 3*32;
-    }
-  // lseek(d->fd, 0, 0);
-  write(d->fd, led, 3*32*32);
   return TRUE;
 }
 

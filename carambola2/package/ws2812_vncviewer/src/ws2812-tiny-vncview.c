@@ -5,12 +5,23 @@
  * Distribute under LGPL-2.0+ or ask.
  *
  */
-#include <tiny_vncview.h>
+#include "tiny_vncview.h"
 
 #include <sys/ioctl.h>	// ioctl FIONREAD
 #include <sys/stat.h>	// mkfifo()
 #include <fcntl.h>	// open()
 #include <netdb.h>
+
+// #define USE_GAMMA_LUT	// does not work well with the arietta ledpanel. we have not enough bits.
+#if 0	// arietta
+# define PANEL_W		32
+# define PANEL_H		32
+# define PANEL_DEVICE_NAME "/sys/class/ledpanel/rgb_buffer"
+#else
+# define PANEL_W		30
+# define PANEL_H		9
+# define PANEL_DEVICE_NAME "/dev/ws2812"
+#endif
 
 void cursor_up(int n)
 {
@@ -100,6 +111,82 @@ void read_rgb_file(int w, int h, char *fname, unsigned char *buf)
   fclose(fp);
 }
 
+struct draw_ledpanel_data
+{
+  int fd;
+  unsigned char *lut;
+};
+
+#ifdef USE_GAMMA_LUT
+// rg, gg, bg, are gamma values in the range of [-16..0..16], -16 is brightest, 0 is linear, 16 is darkest.
+unsigned char *mkgamma_lut(int rg, int gg, int bg)
+{
+  unsigned char *lut = (unsigned char *)calloc(3, 256);
+
+  unsigned int i;
+
+#define L_POW4(i)    ((i)*(i)*(i)/255*(i)/(255*255))
+#define L_POW3(i)    ((i)*(i)*(i)/        (255*255))
+#define L_POW2(i)        ((i)*(i)/        (255))
+
+// adjust the output values to not use the full [0..255] range.
+#define L_RANGE(offset,i)	(32-(offset)+(i)*7/8)
+
+  if (rg < 0)
+    for (i = 0; i < 255; i++) lut[i+0*256] = L_RANGE(8, 255-((16+rg)*(255-i)-rg*L_POW2(255-i))/16);
+  else
+    for (i = 0; i < 255; i++) lut[i+0*256] = L_RANGE(8,     ((16-rg)*i      +rg*L_POW2(    i))/16);
+
+  if (gg < 0)
+    for (i = 0; i < 255; i++) lut[i+1*256] = L_RANGE(8, 255-((16+gg)*(255-i)-gg*L_POW2(255-i))/16);
+  else
+    for (i = 0; i < 255; i++) lut[i+1*256] = L_RANGE(8,     ((16-gg)*i      +gg*L_POW2(    i))/16);
+
+  if (bg < 0)
+    for (i = 0; i < 255; i++) lut[i+2*256] = L_RANGE(8, 255-((16+bg)*(255-i)-bg*L_POW2(255-i))/16);
+  else
+    for (i = 0; i < 255; i++) lut[i+2*256] = L_RANGE(8,     ((16-bg)*i      +bg*L_POW2(    i))/16);
+
+  return lut;
+}
+#endif
+
+int draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
+{
+  // FIXME: need gamma curves here!
+  struct draw_ledpanel_data *d = (struct draw_ledpanel_data *)data;
+  static unsigned char led[PANEL_W*PANEL_H*3];
+  unsigned char *p = led;
+  int h = PANEL_H;
+
+  rgb += view->x * 3;
+  rgb += view->y * stride;
+
+#ifdef USE_GAMMA_LUT
+  // with only 7 values, all on the bright side, gamma correction is hard.
+  if (!d->lut) d->lut = mkgamma_lut(8,8,8);
+#endif
+  while (h-- > 0)
+    {
+#ifdef USE_GAMMA_LUT
+      int x;
+      for (x = 0; x < 3*PANEL_W; x+=3)
+        {
+          p[x+0] = d->lut[rgb[x+0]+0*256];
+          p[x+1] = d->lut[rgb[x+1]+1*256];
+          p[x+2] = d->lut[rgb[x+2]+2*256];
+        }
+#else
+      memcpy(p, rgb, 3*PANEL_W);
+#endif
+      rgb += stride;
+      p += 3*PANEL_W;
+    }
+  // lseek(d->fd, 0, 0);
+  write(d->fd, led, 3*PANEL_W*PANEL_H);
+  return TRUE;
+}
+
 
 int main(int ac, char **av)
 {
@@ -134,12 +221,12 @@ Usage:\n\
     }
   conn->view.x = 0;
   conn->view.y = 0;
-  conn->view.w = 32;
-  conn->view.h = 32;
+  conn->view.w = PANEL_W;
+  conn->view.h = PANEL_H;
 
   struct draw_ledpanel_data draw_ledpanel_data;
   draw_ledpanel_data.lut = NULL;
-  draw_ledpanel_data.fd = open("/sys/class/ledpanel/rgb_buffer", O_WRONLY);
+  draw_ledpanel_data.fd = open(PANEL_DEVICE_NAME, O_WRONLY);
   if (getenv("VNC_TINY_STDOUT") || draw_ledpanel_data.fd < 0)
     {
       conn->expose_cb = draw_ascii_art;
@@ -177,11 +264,11 @@ Usage:\n\
 
 #else
 
-  char buf[32*32*3];
-  read_rgb_file(32, 32, av[1], buf);
-  // draw_ttyc8(32,32,buf,32);
-  draw_ttyramp(32,32,buf,32);
+  char buf[PANEL_W*PANEL_H*3];
+  read_rgb_file(PANEL_W, PANEL_H, av[1], buf);
+  // draw_ttyc8(PANEL_W,PANEL_H,buf,PANEL_W);
+  draw_ttyramp(PANEL_W,PANEL_H,buf,PANEL_W);
 #endif
-  return TRUE;
+  return 0;
 }
 

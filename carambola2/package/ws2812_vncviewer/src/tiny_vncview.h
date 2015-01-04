@@ -22,6 +22,14 @@
 # include <zlib.h>	// BuildRequires: zlib-devel
 #endif
 
+typedef VncConnectionPrivate;
+
+typedef struct VncView
+{
+  int x, y, w, h;
+  int moved;	// FIXME: every move here currently triggers a full update.
+} VncView;
+
 
 typedef struct VncConnection
 {
@@ -43,3 +51,4 @@ int vnc_connection_set_encodings(VncConnection *conn, int n_encoding, u_int32_t 
 
 int vnc_connection_server_message(VncConnection *conn);
 void vncview_moveto(int x, int y);
+VncConnection *connect_vnc_server(char *hostname, char *str_port);

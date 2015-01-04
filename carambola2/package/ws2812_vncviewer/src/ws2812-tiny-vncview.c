@@ -11,8 +11,8 @@
 #include <fcntl.h>	// open()
 #include <netdb.h>
 
-// #define USE_GAMMA_LUT	// does not work well with the arietta ledpanel. we have not enough bits.
 #if 0	// arietta
+// #define USE_GAMMA_LUT	// does not work well with the arietta ledpanel. we have not enough bits.
 # define PANEL_W		32
 # define PANEL_H		32
 # define PANEL_DEVICE_NAME "/sys/class/ledpanel/rgb_buffer"
@@ -20,6 +20,7 @@
 # define PANEL_W		30
 # define PANEL_H		9
 # define PANEL_DEVICE_NAME "/dev/ws2812"
+# define USE_GAMMA_LUT		16,16,16	// RGB triple [-16..0..16] = [bright..normal..dark]
 #endif
 
 void cursor_up(int n)
@@ -128,6 +129,8 @@ struct draw_ledpanel_data
 unsigned char *mkgamma_lut(int rg, int gg, int bg)
 {
   unsigned char *lut = (unsigned char *)calloc(3, 256);
+  char *e = getenv("GAMMA16");
+  if (e) { rg=atoi(e); gg=atoi(e); bg=atoi(e); }
 
   unsigned int i;
 
@@ -136,23 +139,27 @@ unsigned char *mkgamma_lut(int rg, int gg, int bg)
 #define L_POW2(i)        ((i)*(i)/        (255))
 
 // adjust the output values to not use the full [0..255] range.
-#define L_RANGE(offset,i)	(32-(offset)+(i)*7/8)
+// #define L_RANGE(offset,value)	(32-(offset)+(value)*7/8)
+#define L_RANGE(offset,value)		((value)*7/8)
 
   if (rg < 0)
-    for (i = 0; i < 255; i++) lut[i+0*256] = L_RANGE(8, 255-((16+rg)*(255-i)-rg*L_POW2(255-i))/16);
+    for (i = 0; i <= 255; i++) lut[i+0*256] = L_RANGE(8, 255-((16+rg)*(255-i)-rg*L_POW3(255-i))/16);
   else
-    for (i = 0; i < 255; i++) lut[i+0*256] = L_RANGE(8,     ((16-rg)*i      +rg*L_POW2(    i))/16);
+    for (i = 0; i <= 255; i++) lut[i+0*256] = L_RANGE(8,     ((16-rg)*i      +rg*L_POW3(    i))/16);
 
   if (gg < 0)
-    for (i = 0; i < 255; i++) lut[i+1*256] = L_RANGE(8, 255-((16+gg)*(255-i)-gg*L_POW2(255-i))/16);
+    for (i = 0; i <= 255; i++) lut[i+1*256] = L_RANGE(8, 255-((16+gg)*(255-i)-gg*L_POW3(255-i))/16);
   else
-    for (i = 0; i < 255; i++) lut[i+1*256] = L_RANGE(8,     ((16-gg)*i      +gg*L_POW2(    i))/16);
+    for (i = 0; i <= 255; i++) lut[i+1*256] = L_RANGE(8,     ((16-gg)*i      +gg*L_POW3(    i))/16);
 
   if (bg < 0)
-    for (i = 0; i < 255; i++) lut[i+2*256] = L_RANGE(8, 255-((16+bg)*(255-i)-bg*L_POW2(255-i))/16);
+    for (i = 0; i <= 255; i++) lut[i+2*256] = L_RANGE(8, 255-((16+bg)*(255-i)-bg*L_POW3(255-i))/16);
   else
-    for (i = 0; i < 255; i++) lut[i+2*256] = L_RANGE(8,     ((16-bg)*i      +bg*L_POW2(    i))/16);
+    for (i = 0; i <= 255; i++) lut[i+2*256] = L_RANGE(8,     ((16-bg)*i      +bg*L_POW3(    i))/16);
 
+  // printf("R: %d, %d, .. %d, .. %d, %d\n", lut[0*256+0], lut[0*256+1], lut[0*256+127], lut[0*256+254],lut[0*256+255]);
+  // printf("G: %d, %d, .. %d, .. %d, %d\n", lut[1*256+0], lut[1*256+1], lut[1*256+127], lut[1*256+254],lut[1*256+255]);
+  // printf("B: %d, %d, .. %d, .. %d, %d\n", lut[2*256+0], lut[2*256+1], lut[2*256+127], lut[2*256+254],lut[2*256+255]);
   return lut;
 }
 #endif
@@ -170,7 +177,7 @@ void draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
 
 #ifdef USE_GAMMA_LUT
   // with only 7 values, all on the bright side, gamma correction is hard.
-  if (!d->lut) d->lut = mkgamma_lut(8,8,8);
+  if (!d->lut) d->lut = mkgamma_lut(USE_GAMMA_LUT);
 #endif
   while (h-- > 0)
     {
@@ -207,7 +214,8 @@ Usage:\n\
   # On the X-Server HOST run a VNC server e.g. like this:\n\
   x11vnc -clip 640x480x0x0 -cursor none -loop\n\
 \n\
-  # On Arietta:\n\
+  # On Arietta/openWRT:\n\
+  GAMMA16=...	// -16..0..16 \n\
   VNC_TINY_CFG=/tmp/fifo %s HOST [5900] [[xpos ypos]] &\n\
 \n\
   # To reposition the viewport:\n\

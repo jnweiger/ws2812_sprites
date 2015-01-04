@@ -10,7 +10,7 @@
  * x11vnc -clip 640x480+0+0 -cursor none -repeat -loop
  *
  * Code taken from GTK VNC Widget.
- * Below is the copyright of github/gtk-vnc/src/vncconnection.c
+ * Below is the copyright of http://git.gnome.org/browse/gtk-vnc/tree/src/vncconnection.c
  */
 /*
  * GTK VNC Widget
@@ -36,7 +36,6 @@
 
 /*
  * FIXME:
- * - add gamma lookup tables to draw_ledpanel_data
  * - view.moved: triggers a full refresh: It should move the ledpanel contents 
  *   locally and only send refresh requests for missing parts.
  */
@@ -754,8 +753,13 @@ int vnc_connection_server_message(VncConnection *conn, int extra_fd)
 	free(data);
     }	break;
 
+    case VNC_CONNECTION_SERVER_MESSAGE_BELL:
+	fprintf(stderr, "bell\n");
+        break;
+
     default:
-	// most likely a protocol error...
+	// See http://git.gnome.org/browse/gtk-vnc/tree/src/vncconnection.c for missing parts.
+	// Or its most likely a protocol error...
         fprintf(stderr, "Received an unknown message: %u\n", msg);
         priv->has_error = TRUE;
         break;

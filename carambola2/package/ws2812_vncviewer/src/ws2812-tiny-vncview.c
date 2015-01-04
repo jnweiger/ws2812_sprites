@@ -7,7 +7,6 @@
  */
 #include "tiny_vncview.h"
 
-#include <sys/ioctl.h>	// ioctl FIONREAD
 #include <sys/stat.h>	// mkfifo()
 #include <fcntl.h>	// open()
 #include <netdb.h>
@@ -82,6 +81,13 @@ void draw_ttyc8(int ww, int hh, unsigned char *img, int stride)
   fflush(stdout);
 }
 
+void draw_ascii_art(VncView *view, unsigned char *rgb, int stride, void *data)
+{
+  rgb += view->x * 3;
+  rgb += view->y * stride;
+  draw_ttyc8(32,32,rgb,stride);
+}
+
 void draw_ttyramp(int ww, int hh, unsigned char *img, int stride)
 {
   int h, w;
@@ -151,7 +157,7 @@ unsigned char *mkgamma_lut(int rg, int gg, int bg)
 }
 #endif
 
-int draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
+void draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
 {
   // FIXME: need gamma curves here!
   struct draw_ledpanel_data *d = (struct draw_ledpanel_data *)data;
@@ -184,7 +190,6 @@ int draw_ledpanel(VncView *view, unsigned char *rgb, int stride, void *data)
     }
   // lseek(d->fd, 0, 0);
   write(d->fd, led, 3*PANEL_W*PANEL_H);
-  return TRUE;
 }
 
 
@@ -203,7 +208,7 @@ Usage:\n\
   x11vnc -clip 640x480x0x0 -cursor none -loop\n\
 \n\
   # On Arietta:\n\
-  VNC_TINY_CFG=/tmp/fifo %s HOST [5900] &\n\
+  VNC_TINY_CFG=/tmp/fifo %s HOST [5900] [[xpos ypos]] &\n\
 \n\
   # To reposition the viewport:\n\
   echo 100 100 > /tmp/fifo\n", av[0]);
@@ -219,8 +224,8 @@ Usage:\n\
       mkfifo(fifo, 0777);
       fifo_fd = open(fifo, O_RDONLY|O_NONBLOCK);
     }
-  conn->view.x = 0;
-  conn->view.y = 0;
+  conn->view.x = 0; if (ac > 3) conn->view.x = atoi(av[3]);
+  conn->view.y = 0; if (ac > 4) conn->view.y = atoi(av[4]);
   conn->view.w = PANEL_W;
   conn->view.h = PANEL_H;
 
@@ -256,7 +261,7 @@ Usage:\n\
 	    {
 	      buf[n] = '\0';
 	      n = sscanf(buf, "%d %d\n", &x, &y);
-	      if (n >= 1) vncview_moveto(conn, x, y);
+	      if (n >= 1) vnc_view_moveto(conn, x, y);
 	    }
 	  continue;
         }

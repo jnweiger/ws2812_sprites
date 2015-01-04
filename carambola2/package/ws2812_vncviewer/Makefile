@@ -20,7 +20,7 @@ include $(TOPDIR)/rules.mk
 
 # Name and release number of this package
 PKG_NAME:=ws2812-tiny-vncview
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 
 # This specifies the directory where we're going to build the program.  

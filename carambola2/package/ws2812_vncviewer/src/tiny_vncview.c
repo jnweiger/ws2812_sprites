@@ -320,8 +320,17 @@ static void vnc_connection_read_pixel_format(VncConnection *conn, VncPixelFormat
     fmt->red_shift       = vnc_connection_read_u8(conn);
     fmt->green_shift     = vnc_connection_read_u8(conn);
     fmt->blue_shift      = vnc_connection_read_u8(conn);
-
     vnc_connection_read(conn, pad, 3);
+
+    // Hack alert: this gets the colors right on my AR9331. 
+    // (Pixel format BPP: 32,  Depth: 24, Byte order: 1234, True color: 255)
+    // using ntohl() in vnc_framebuffer_blt has no effect?
+    if (fmt->depth == 24 && fmt->bits_per_pixel == 32 && fmt->true_color_flag && fmt->byte_order == G_LITTLE_ENDIAN)
+      {
+        fmt->red_shift = 24   - fmt->red_shift;
+        fmt->green_shift = 24 - fmt->green_shift;
+        fmt->blue_shift = 24  - fmt->blue_shift;
+      }
 
     fprintf(stderr, "Pixel format BPP: %d,  Depth: %d, Byte order: %d, True color: %d\n"
               "             Mask  red: %3d, green: %3d, blue: %3d\n"
@@ -462,11 +471,14 @@ int vnc_connection_initialize(VncConnection *conn)
     return FALSE;
 
 #ifdef HAVE_ZLIB
-  memset(&priv->streams, 0, sizeof(priv->streams));	// typo in gtk-vnc/src/vncconnection?
-  /* FIXME what level? */
-  for (i = 0; i < 5; i++)
-    inflateInit(&priv->streams[i]);
-  priv->strm = NULL;
+  {
+    int i;
+    memset(&priv->streams, 0, sizeof(priv->streams));	// typo in gtk-vnc/src/vncconnection?
+    /* FIXME what level? */
+    for (i = 0; i < 5; i++)
+      inflateInit(&priv->streams[i]);
+    priv->strm = NULL;
+  }
 #endif
 
   // vncdisplay.c:on_initialized()
@@ -509,7 +521,7 @@ static void vnc_framebuffer_blt(VncConnectionPrivate *priv, u_int8_t *dst, int d
         {
           for (x = 0; x < w; x++)
 	    {
-	      u_int32_t v = *src++;
+	      u_int32_t v = ntohl(*src++);
 	      *rgb++ = (v>>priv->fmt.red_shift) & 0xff;
 	      *rgb++ = (v>>priv->fmt.green_shift) & 0xff;
 	      *rgb++ = (v>>priv->fmt.blue_shift) & 0xff;
@@ -661,7 +673,7 @@ int vnc_connection_framebuffer_update_request(VncConnection *conn,
     return !vnc_connection_has_error(conn);
 }
 
-int vnc_connection_server_message(VncConnection *conn, int extra_fg)
+int vnc_connection_server_message(VncConnection *conn, int extra_fd)
 {
   int n;
   fd_set rfds;
@@ -675,14 +687,14 @@ int vnc_connection_server_message(VncConnection *conn, int extra_fg)
   FD_ZERO(&rfds);
   FD_SET(conn->fd, &rfds);
   n = conn->fd;
-  if (conn->fifo >= 0)
+  if (extra_fd >= 0)
     {
       int nbytes = 0;
-      ioctl(conn->fifo, FIONREAD, &nbytes);
+      ioctl(extra_fd, FIONREAD, &nbytes);
       if (nbytes > 0)
         {
-          if (conn->fifo > n) n = conn->fifo;
-          FD_SET(conn->fifo, &rfds);
+          if (extra_fd > n) n = extra_fd;
+          FD_SET(extra_fd, &rfds);
         }
     }
   tval.tv_sec = conn->msec_refresh / 1000;
@@ -698,34 +710,9 @@ int vnc_connection_server_message(VncConnection *conn, int extra_fg)
       return !vnc_connection_has_error(conn);
     }
 
-  if (conn->fifo >= 0 && FD_ISSET(conn->fifo, &rfds))
-    {
-      char buf[1024];
-      int x = conn->view.x;
-      int y = conn->view.y;
+  if (extra_fd >= 0 && FD_ISSET(extra_fd, &rfds)) return extra_fd;	// yield
 
-      n = read(conn->fifo, buf, sizeof(buf)-1);
-      if (n < 0) return FALSE;
-      if (n > 0)
-        {
-          buf[n] = '\0';
-          n = sscanf(buf, "%d %d\n", &x, &y);
-	  if (n >= 1)
-            {
-	      // fprintf(stderr, "View (%d,%d) moved from (%d,%d) to (%d,%d) \n", conn->view.w,conn->view.h,
-	      //	conn->view.x,conn->view.y, x,y);
-	      if (x < 0) x = 0;
-              if (y < 0) y = 0;
-	      if (x+conn->view.w > conn->priv->width)  x = conn->priv->width  - conn->view.w;
-	      if (y+conn->view.h > conn->priv->height) y = conn->priv->height - conn->view.h;
-	      if (x != conn->view.x || y != conn->view.y) conn->view.moved = 1;
-              conn->view.x = x; 
-              conn->view.y = y; 
-            }
-        }
-      return TRUE;
-    }
-
+  // assert(ISSET(conn->fd, &rfds));
   int msg = vnc_connection_read_u8(conn);
   switch (msg) {
     case VNC_CONNECTION_SERVER_MESSAGE_FRAMEBUFFER_UPDATE: {
@@ -777,15 +764,7 @@ int vnc_connection_server_message(VncConnection *conn, int extra_fg)
   return !vnc_connection_has_error(conn);
 }
 
-int draw_ascii_art(VncView *view, unsigned char *rgb, int stride, void *data)
-{
-  rgb += view->x * 3;
-  rgb += view->y * stride;
-  draw_ttyc8(32,32,rgb,stride);
-  return TRUE;
-}
-
-void vncview_moveto(VncConnection *conn, int x, int y)
+void vnc_view_moveto(VncConnection *conn, int x, int y)
 {
   // fprintf(stderr, "View (%d,%d) moved from (%d,%d) to (%d,%d) \n", conn->view.w,conn->view.h,
   //	conn->view.x,conn->view.y, x,y);

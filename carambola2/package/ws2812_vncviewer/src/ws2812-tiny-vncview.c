@@ -208,18 +208,23 @@ int main(int ac, char **av)
   if (!av[1])
     {
       fprintf(stderr,
-"vnc_tiny_view connects your Arietta ledpanel to a remote X-Server.\n\
+"vnc_tiny_view connects your led panel to a remote X-Server.\n\
 \n\
 Usage:\n\
   # On the X-Server HOST run a VNC server e.g. like this:\n\
-  x11vnc -clip 640x480x0x0 -cursor none -loop\n\
+  x11vnc -clip 640x480+100+30 -scale 2/3 -cursor none -loop -repeat\n\
 \n\
   # On Arietta/openWRT:\n\
-  GAMMA16=...	// -16..0..16 \n\
   VNC_TINY_CFG=/tmp/fifo %s HOST [5900] [[xpos ypos]] &\n\
 \n\
   # To reposition the viewport:\n\
   echo 100 100 > /tmp/fifo\n", av[0]);
+#if USE_GAMMA_LUT
+      fprintf(stderr,
+"\n\
+  You can apply gamma correction with the environment variable\n\
+  GAMMA16=...	// -16..0..16 \n");
+#endif
       exit(0);
     }
 

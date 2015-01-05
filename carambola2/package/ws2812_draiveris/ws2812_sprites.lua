@@ -13,7 +13,7 @@ socket.sleep(0.5)	-- give udev time to create the device
 dev = io.open("/dev/ws2812", "wb")
 dev:setvbuf("no")
 
-bgval=3
+bgval=4
 Walker = class({ panel_w=30, panel_h=9 })
 
 function Walker:init(dx, dy, r, g, b, args)
@@ -140,6 +140,29 @@ function rgb_hue(val, degree)
   return math.floor(r*val), math.floor(g*val), math.floor(b*val)
 end  
 
+function veclen(x,y)
+  return math.sqrt(x*x+y*y)
+end
+
+function fast_veclen(x,y)
+  -- Similar to veclen, but not using a square root, 
+  -- Do not use. It repeatedly over estimates, thus shortening normals over time.
+  x,y = math.abs(x),math.abs(y)
+  if x < y then x,y=y,x end
+  return x+y/2
+end
+
+function vecreflect(x,y, nx,ny)
+  -- reflect vector (x,y) at the wall normal (nx,ny)
+  -- nx,ny is expeccted to be a normalized normal already.
+
+  -- nl=veclen(nx,ny)
+  -- nx, ny = nx/nl, ny/nl		-- normalize normal.
+  dot = x*nx+y*ny
+  return x-2*nx*dot, y-2*ny*dot
+end
+
+
 RotatingWalker = class(Walker)
 RotatingWalker.xy_deg = 0
 
@@ -153,12 +176,39 @@ function RotatingWalker:advance()
     self.y = self.y + y
 end
 
+CollidingWalker = class(Walker)
+function CollidingWalker:advance()
+  self.x = self.x + self.dx
+  self.y = self.y + self.dy
+  if not(self.collide) then return end
+  if not(self.ignore) then self.ignore={} end
+
+  for _,w in ipairs(self.collide) do repeat
+    if w==self then break end
+
+    d = veclen(self.x-w.x, self.y-w.y)
+    if d < 1.5 then
+      if not(self.ignore[w]) then
+        self.dx,self.dy = vecreflect(self.dx,self.dy, (self.x-w.x)/d,(self.y-w.y)/d)
+        -- print("ding",self.dx,self.dy)
+        self.ignore[w] = true
+      end
+    else
+      self.ignore[w] = false
+    end
+  until true end	-- the break above is a continue in disguise.
+end
+
+
 walkers = {
-  Walker(0.2,0.1, 	100,0,0,  { xbounce=true, ybounce=true } ),
+  Walker(0.09,0.04, 	100,0,60,  { xbounce=true, ybounce=true } ),
   Walker(0.01,0.033, 	120,80,0, { ybounce=true } ),
   Walker(0.19,0.11, 	0,0,100),
-  RotatingWalker(0.07,0.07, 	0,150,0)
+  RotatingWalker(0.07,0.07, 	0,150,0),
+  CollidingWalker(0.12,0.1, 	150,0,0,  { xbounce=true, ybounce=true } )
 }
+
+CollidingWalker.collide = walkers
 
 deg=0
 while true do

@@ -178,25 +178,25 @@ end
 
 CollidingWalker = class(Walker)
 function CollidingWalker:advance()
-  self.x = self.x + self.dx
-  self.y = self.y + self.dy
-  if not(self.collide) then return end
-  if not(self.ignore) then self.ignore={} end
+    self.x = self.x + self.dx
+    self.y = self.y + self.dy
+    if not(self.collide) then return end
+    if not(self.ignore) then self.ignore={} end
 
-  for _,w in ipairs(self.collide) do repeat
-    if w==self then break end
+    for _,w in ipairs(self.collide) do repeat
+      if w==self then break end
 
-    d = veclen(self.x-w.x, self.y-w.y)
-    if d < 1.5 then
-      if not(self.ignore[w]) then
-        self.dx,self.dy = vecreflect(self.dx,self.dy, (self.x-w.x)/d,(self.y-w.y)/d)
-        -- print("ding",self.dx,self.dy)
-        self.ignore[w] = true
+      d = veclen(self.x-w.x, self.y-w.y)
+      if d < 1.5 then
+        if not(self.ignore[w]) then
+          self.dx,self.dy = vecreflect(self.dx,self.dy, (self.x-w.x)/d,(self.y-w.y)/d)
+          -- print("ding",self.dx,self.dy)
+          self.ignore[w] = true
+        end
+      else
+        self.ignore[w] = false
       end
-    else
-      self.ignore[w] = false
-    end
-  until true end	-- the break above is a continue in disguise.
+    until true end	-- the break above is a continue in disguise.
 end
 
 
@@ -209,6 +209,7 @@ walkers = {
 }
 
 CollidingWalker.collide = walkers
+
 
 deg=0
 while true do

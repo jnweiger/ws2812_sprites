@@ -4,7 +4,7 @@
 # insmod ws2812_draiveris gpio_number=22
 # mknod /dev/ws2812 c 152 0
 
-import os, time
+import os, time, math
 
 os.system("insmod ws2812-draiveris gpios=20,21,22 inverted=1")
 # os.system("mknod /dev/ws2812 c 152 0")
@@ -108,32 +108,83 @@ def rgb_hue(val, degree):
   """degree is a value [0..359], it defines the hue of the color.
      0:red,  60:yellow,  120:green,  180:cyan,  240:blue, 300:magenta, (360:red)
   """
-  wheel = ( [val,0,0], [val,val,0], [0,val,0], [0,val,val], [0,0,val], [val,0,val], [val,0,0] )
+  wheel = ( [1,0,0], [1,1,0], [0,1,0], [0,1,1], [0,0,1], [1,0,1], [1,0,0] )
   degree = (degree % 360)/60.
   w1 = wheel[int(degree)]
   w2 = wheel[int(degree)+1]
   frac = degree-int(degree)
-  r = int(w1[0]*(1-frac)+w2[0]*frac)
-  g = int(w1[1]*(1-frac)+w2[1]*frac)
-  b = int(w1[2]*(1-frac)+w2[2]*frac)
-  return [r,g,b]
-  
+  r = w1[0]*(1-frac)+w2[0]*frac
+  g = w1[1]*(1-frac)+w2[1]*frac
+  b = w1[2]*(1-frac)+w2[2]*frac
+  return [int(r*val),int(g*val),int(b*val)]
+
+def veclen(x,y):
+  return math.sqrt(x*x+y*y)
+
+def fast_veclen(x,y):
+  """ Similar to veclen, but not using a square root, 
+      Do not use. It repeatedly over estimates, thus shortening normals over time.
+  """
+  x,y = abs(x),abs(y)
+  if x < y: x,y=y,x
+  return x+y/2
+
+def vecreflect(x,y, nx,ny):
+  """
+   reflect vector (x,y) at the wall normal (nx,ny)
+   nx,ny is expeccted to be a normalized normal already.
+
+   nl=veclen(nx,ny)
+   nx, ny = nx/nl, ny/nl		-- normalize normal.
+  """
+  dot = x*nx+y*ny
+  return x-2*nx*dot, y-2*ny*dot
+
 
 class rotating_walker(walker):
   xy_deg = 0
-  speed = 0.13
+
   def advance(self):
-    self.xy_deg = (self.xy_deg+.8*self.speed) % 360
-    (x,y)=xy_pol(.12*self.speed, self.xy_deg)
-    self.x += x-.017
+    rspeed=0.85
+    xspeed=0.017
+    scale=0.06
+    self.xy_deg = (self.xy_deg+rspeed) % 360
+    (x,y)=xy_pol(scale, self.xy_deg)
+    self.x += x + xspeed
     self.y += y
 
+class colliding_walker(walker):
+  collide=None
+  ignore={}
+
+  def advance(self):
+    self.x = self.x + self.dx
+    self.y = self.y + self.dy
+    if self.ignore is None: return
+    
+    for w_idx in range(len(self.collide)):
+      w = self.collide[w_idx]
+      if w == self: continue
+      d = veclen(self.x-w.x, self.y-w.y)
+      if d < 1.5:
+        if not w_idx in self.ignore  or  not self.ignore[w_idx]:
+          self.dx,self.dy = vecreflect(self.dx,self.dy, (self.x-w.x)/d,(self.y-w.y)/d)
+          # print "ding",self.dx,self.dy
+          self.ignore[w_idx]=True
+      else:
+        self.ignore[w_idx]=False
+
+
 walkers = (
-  walker(0.2,0.1, 	100,0,0,  xbounce=True, ybounce=True),
+  walker(0.09,0.04, 	100,0,60,  xbounce=True, ybounce=True),
   walker(0.01,0.033, 	100,40,0, ybounce=True),
   walker(0.19,0.11, 	0,0,100),
-  rotating_walker(0.07,0.07, 	0,150,0)
+  rotating_walker(0.07,0.07, 	0,150,0),
+  colliding_walker(0.12,0.1, 	150,0,0,  xbounce=True, ybounce=True)
 )
+
+walkers[-1].collide = walkers
+
 
 deg=0
 while True:

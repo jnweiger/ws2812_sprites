@@ -13,7 +13,7 @@
  *	gpio_count=3		# default: 1, enable multiple outputs, counting from gpio_number.
  *	gpios=20,21,22		# explicitly specify where the led_strips are connected.
  *      leds_per_gpio		# length of the led strips.
- *	inverted=1		# have inverting line drivers at the GPIOs
+ *	inverted=0		# have inverting line drivers at the GPIOs
  *
  */
 #include <linux/init.h>
@@ -66,7 +66,7 @@ static int gpio_number = -1; // default -1 => GPIO_NUMBER_DEFAULT
 module_param(gpio_number, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(gpio_number, "GPIO number of first chain. Either use 'gpio_number=FIRST gpio_count=COUNT' or use 'gpios=FIRST,SECOND,THIRD,...'.");
 
-static int inverted = 1; // default is 1 == inverted, good for 74HCT02 line drivers.
+static int inverted = 0; // default is 0 == normal. 1 == inverted is good for 74HCT02 line drivers.
 module_param(inverted, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(inverted, "drive inverted outputs");
 
@@ -82,8 +82,6 @@ static char *gpios = NULL;
 module_param(gpios, charp, 0);
 MODULE_PARM_DESC(gpios, "Comma separated list of GPIO numbers. Either use this, or 'gpio_number= gpio_count='.");
 
-// define SET_GPIOS_H(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_SET, gpio_bits); } while (0)
-// define SET_GPIOS_L(gpio_bits)	do { sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits); } while (0)
 #define SET_GPIOS_H(gpio_bits)	sysRegWrite(SYS_REG_GPIO_SET, gpio_bits)
 #define SET_GPIOS_L(gpio_bits)	sysRegWrite(SYS_REG_GPIO_CLEAR, gpio_bits)
 
@@ -92,10 +90,10 @@ static u_int32_t gpio_list[GPIO_LIST_MAX];
 static u_int32_t gpio_bit[GPIO_LIST_MAX];
 static int gpio_bit_mask;
 
-// led_bits_m_i() sends a pulse to multiple GPIO pins at once. Inverted output.
+// led_bits_m_inverted() sends a pulse to multiple GPIO pins at once. Inverted output.
 // The gpio_early_mask indicates which GPIO see a short pulse (aka low value).
 // The gpio_early_mask must be a subset of gpio_bit_mask.
-void led_bits_m_i(u_int32_t gpio_early_mask)
+void led_bits_m_inverted(u_int32_t gpio_early_mask)
 {
     // High value patterns:
     //  good: 12L3H .. 12L8H 11L4H .. 16L4H
@@ -207,26 +205,26 @@ void update_leds(const char *buff, size_t len)
 		if (pos >= len || !(buff[pos] & color_bit_mask)) low_gpios |= gpio_bit[idx];
 		pos += stride;
 	      }
-	    led_bits_m_i(low_gpios);
+	    led_bits_m_inverted(low_gpios);
 	    color_bit_mask >>= 1;
 	  }
 #else 
         unsigned char c = buff[i];
 
-        if (c & 0x80) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x40) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x20) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x10) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x08) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x04) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x02) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
-        if (c & 0x01) led_bits_m_i(0); else led_bits_m_i(gpio_bit_mask);
+        if (c & 0x80) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x40) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x20) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x10) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x08) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x04) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x02) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
+        if (c & 0x01) led_bits_m_inverted(0); else led_bits_m_inverted(gpio_bit_mask);
 #endif
         if (grb_idx >= 3) grb_idx = 0;
       }
       spin_unlock_irqrestore(&critical, flags);
     }
-  else
+  else	// not inverted
     {
       // wait 65uS
       for(i=0;i<1000;i++)
@@ -313,19 +311,19 @@ int init_module(void)
   int r;
   if ((r = register_chrdev(WS2812_MAJOR, DEVICE_NAME, &fops)))
     {
-      printk(KERN_ALERT "Registering char device major=%d failed with %d\n", WS2812_MAJOR, r);
+      printk(KERN_ALERT DEVICE_NAME": Registering char device major=%d failed with %d\n", WS2812_MAJOR, r);
       return r;
     }
 
   if (gpio_count > GPIO_LIST_MAX)
     {
-      printk(KERN_ALERT "Error: gpio_count=%d > MAX=%d\n", gpio_count, GPIO_LIST_MAX);
+      printk(KERN_ALERT DEVICE_NAME": Error: gpio_count=%d > MAX=%d\n", gpio_count, GPIO_LIST_MAX);
       return -EINVAL;
     }
 
   if (gpios && gpio_number >= 0)
     {
-      printk(KERN_ALERT "Error: specify either gpios='%s' or gpio_number=%d, not both\n", gpios, gpio_number);
+      printk(KERN_ALERT DEVICE_NAME": Error: specify either gpios='%s' or gpio_number=%d, not both\n", gpios, gpio_number);
       return -EINVAL;
     }
 
@@ -350,7 +348,7 @@ int init_module(void)
       gpio_count = idx;
       if (!gpio_count)
         {
-          printk(KERN_ALERT "Error: cannot parse pos=%d at list of comma separated integers: gpios='%s'\n", p-gpios, gpios);
+          printk(KERN_ALERT DEVICE_NAME": Error: cannot parse pos=%d at list of comma separated integers: gpios='%s'\n", p-gpios, gpios);
           return -EINVAL;
         }
     }
@@ -367,17 +365,17 @@ int init_module(void)
         }
     }
 
-  printk(KERN_INFO "Build: %s %s\n", __DATE__, __TIME__);
-  printk(KERN_INFO "Major=%d  device=/dev/%s\n", WS2812_MAJOR, DEVICE_NAME);
-  if (gpios) printk(KERN_INFO "gpios='%s'\n", gpios);
-  printk(KERN_INFO "Base GPIO number: %d, gpio_count=%d\n", gpio_number, gpio_count);
-  printk(KERN_INFO "Leds per chain: %d\n", leds_per_gpio);
-  printk(KERN_INFO "Inverted: %d\n", inverted);
+  printk(KERN_INFO DEVICE_NAME": Build: %s %s\n", __DATE__, __TIME__);
+  printk(KERN_INFO DEVICE_NAME": Major=%d  device=/dev/%s\n", WS2812_MAJOR, DEVICE_NAME);
+  if (gpios) printk(KERN_INFO "ws2812: gpios='%s'\n", gpios);
+  printk(KERN_INFO DEVICE_NAME": Base GPIO number: %d, gpio_count=%d\n", gpio_number, gpio_count);
+  printk(KERN_INFO DEVICE_NAME": Leds per chain: %d\n", leds_per_gpio);
+  printk(KERN_INFO DEVICE_NAME": Inverted: %d\n", inverted);
 
   ws2812_class = class_create(THIS_MODULE, DEVICE_NAME);
   if (!device_create(ws2812_class, NULL, MKDEV(WS2812_MAJOR, 0), NULL, DEVICE_NAME ))
     {
-      printk(KERN_ALERT "device_create failed. Try 'mknod /dev/%s c %d 0'.\n", DEVICE_NAME, WS2812_MAJOR);
+      printk(KERN_ALERT DEVICE_NAME": device_create failed. Try 'mknod /dev/%s c %d 0'.\n", DEVICE_NAME, WS2812_MAJOR);
       // return -ENXIO;		// better continue anyway...
     }
 
@@ -395,7 +393,7 @@ void cleanup_module(void)
   device_destroy(ws2812_class, MKDEV(WS2812_MAJOR,0));
   class_destroy(ws2812_class);
   unregister_chrdev(WS2812_MAJOR, DEVICE_NAME);
-  printk(KERN_ALERT "Bye, that's all.\n");
+  printk(KERN_ALERT DEVICE_NAME": Bye, that's all.\n");
 }
 
 
@@ -491,6 +489,6 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
 static ssize_t device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
 {
   update_leds(buff, len);
-  //printk(KERN_INFO "GOT: %s, %d\n", buff, len);
+  //printk(KERN_INFO DEVICE_NAME": GOT: %s, %d\n", buff, len);
   return len;
 }

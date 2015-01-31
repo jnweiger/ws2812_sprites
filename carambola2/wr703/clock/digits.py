@@ -37,7 +37,12 @@ def print_ascii(img, w, h):
 	    sys.stdout.write("%c%c" % (ch,ch))
 	print ""
  
+def interpolate_1d(f, v1, v2):
+    if (f < 0.0 or f > 1.0): raise ValueError
+    return (1-f)*v1 + f*v2
+
 def interpolate_dali(img1, img2, w, h, f):
+    out=[0] * (w*h)
     threshold=50
     for y in range(h):
         xstart1=0
@@ -52,9 +57,29 @@ def interpolate_dali(img1, img2, w, h, f):
             if img2[w*y+x] > threshold: xstart2=x; break
         for x in reversed(range(xstart2,w)): 
             if img2[w*y+x] > threshold: xend2=x; break
-	print xstart1,xend1, xstart2,xend2
-    print_ascii(img1,w,h)
-    print_ascii(img2,w,h)
+	# print "y=",y, xstart1,xend1, xstart2,xend2
+
+        xstart=int(interpolate_1d(f, xstart1, xstart2)+0.5)
+        xend=int(interpolate_1d(f, xend1, xend2)+0.5)
+
+        stepw1=float(xend1-xstart1)/(xend-xstart)
+        stepw2=float(xend2-xstart2)/(xend-xstart)
+
+	for x in range(xstart, xend+1):
+            xsrc1=(x-xstart)*stepw1+xstart1
+            xf1=xsrc1-int(xsrc1)
+            xsrc1=int(xsrc1)
+
+            xsrc2=(x-xstart)*stepw2+xstart2
+            xf2=xsrc2-int(xsrc2)
+            xsrc2=int(xsrc2)
+
+            # print(x, ":", xsrc1,xf1, w*y+min(xsrc1+1,w-1), '-', xsrc2,xf2, w*y+min(xsrc2+1,w-1) )
+	    v = interpolate_1d(f,
+		  interpolate_1d(xf1, img1[w*y+xsrc1],img1[ w*y+min(xsrc1+1,w-1) ]),
+		  interpolate_1d(xf2, img2[w*y+xsrc2],img2[ w*y+min(xsrc2+1,w-1) ]))
+            out[w*y+x] = int(min(255, v))
+    return out
 
 
 img=[]
@@ -65,6 +90,10 @@ for i in "0123456789":
 
 steps=10
 digit=1
+print_ascii(img[digit], columns, lines)  
+print ""
+print_ascii(img[(digit+1)%10], columns, lines)  
+print ""
 for i in range(steps):
     m=interpolate_dali(img[digit], img[(digit+1)%10], columns, lines, float(i)/(steps-1))
     print_ascii(m, columns, lines)  

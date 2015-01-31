@@ -16,8 +16,17 @@ font_name = 'Ubuntu-B.ttf'
 font_size = 13
 font = ImageFont.truetype(font_name, font_size)
 
+
 lines=9
 columns=6
+
+def gamma255():
+    r=[]
+    for i in range(256):
+        r.append(int(i*i/256))
+    return r
+
+gamma_lut = gamma255()
 
 def render_text(columns, lines, font, text):
     im = Image.new("L", (columns, lines), "black")
@@ -27,7 +36,8 @@ def render_text(columns, lines, font, text):
 
     # put text on its baseline, and horizontally centered.
     draw.text(((columns-fontwidth)/2,lines-fontheight+.5), text, 255, font=font)
-    return list(im.getdata())
+    return map(lambda x:gamma_lut[x], list(im.getdata()))
+
 
 def print_ascii(img, w, h):
     ascii_ramp = " .-:=+*#%@"
@@ -39,12 +49,15 @@ def print_ascii(img, w, h):
 	    sys.stdout.write("%c%c" % (ch,ch))
 	print ""
  
+
 def lua_list(seq):
     return '{' + ','.join(map(lambda x:str(x),seq)) + '}'
+
 
 def interpolate_1d(f, v1, v2):
     if (f < 0.0 or f > 1.0): raise ValueError
     return (1-f)*v1 + f*v2
+
 
 def interpolate_dali(img1, img2, w, h, f):
     out=[0] * (w*h)
@@ -67,6 +80,12 @@ def interpolate_dali(img1, img2, w, h, f):
         xstart=int(interpolate_1d(f, xstart1, xstart2)+0.5)
         xend=int(interpolate_1d(f, xend1, xend2)+0.5)
 
+	if (xend == xstart):
+          if (xstart > 0):
+            xstart -= 1
+          else:
+            xend += 1
+
         stepw1=float(xend1-xstart1)/(xend-xstart)
         stepw2=float(xend2-xstart2)/(xend-xstart)
 
@@ -85,6 +104,7 @@ def interpolate_dali(img1, img2, w, h, f):
 		  interpolate_1d(xf2, img2[w*y+xsrc2],img2[ w*y+min(xsrc2+1,w-1) ]))
             out[w*y+x] = int(min(255, v))
     return out
+
 
 def morph_digit(img1, img2, steps):
     r = []
@@ -110,7 +130,8 @@ def lua_morph_digit(img, digit, advance, nsteps):
                      + [lua_list(img[digit2])])
     return lua_lol
 
-steps=10
+
+steps=15
 img=[]
 for i in "0123456789":
     img.append(render_text(columns, lines, font, i))
@@ -136,11 +157,14 @@ dali_digits = {
 """
 
 for i in range(10):
+    print_ascii(img[i], columns, lines)  
+    print ""
     dali_digits += "    " + lua_morph_digit(img, i, +1, steps)
     if (i < 9): dali_digits += ','
     dali_digits += "\n"
 dali_digits += "}\n"
 
+print "10 digits, morphing steps: ", steps
 f=open('dali_digits.lua', 'w')
 print >>f, dali_digits
 f.close()

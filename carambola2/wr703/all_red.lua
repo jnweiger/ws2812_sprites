@@ -7,6 +7,8 @@
 
 socket=require('socket')
 require('class')
+require('clock/dali_digits')
+
 
 os.execute("insmod ws2812-draiveris gpios=7,14,15 inverted=1")
 socket.sleep(0.5)	-- give udev time to create the device
@@ -239,6 +241,32 @@ walkers = {
 
 CollidingWalker.collide = walkers
 
+function render_digit(digit, data, xoff, r,g,b)
+  -- r,g,b in range [0..1]
+  i = 0
+  for y = 0,8 do
+    for x = 0,5 do
+      i = i + 1  
+      o = 1 + 3 * (xoff + x + 30 * y)
+      -- print(i, digit[i], o)
+      rr = math.floor(digit[i] * r + data[o+0])
+      gg = math.floor(digit[i] * g + data[o+1])
+      bb = math.floor(digit[i] * b + data[o+2])
+      if rr > 255 then rr = 255 end
+      if gg > 255 then gg = 255 end
+      if bb > 255 then bb = 255 end
+      data[o+0] = rr
+      data[o+1] = gg
+      data[o+2] = bb
+    end
+  end
+end
+
+
+maxmorph = #dali_digits[1]
+digit    = 1
+morph    = 1
+wait     = 0
 
 deg=0
 while true do
@@ -253,9 +281,26 @@ while true do
       data[i+0], data[i+1], data[i+2] = r,g,b
     end
   end
+
+  render_digit(dali_digits[digit][morph], data, 24,  0.0, 0.2, 0.0)
+
+  wait = wait + 1
+  if wait > 40 or morph > 1 then
+    wait = 0
+    -- print(digit, morph-1)
+    morph = morph + 1
+    if morph > maxmorph then
+      morph = 1
+      digit = digit + 1
+      if digit > 10 then
+        digit = 1
+      end
+    end
+  end
+
   deg = deg + .3
   if deg > 360 then deg = deg - 360 end
   for _,w in pairs(walkers) do w:walk(data) end
   dev:write(string.char(unpack(data)))
-  -- socket.sleep(0.02)
+  -- socket.sleep(0.05)
 end

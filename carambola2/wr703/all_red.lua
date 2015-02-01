@@ -15,8 +15,8 @@ socket.sleep(0.5)	-- give udev time to create the device
 dev = io.open("/dev/ws2812", "wb")
 dev:setvbuf("no")
 
-bgval=2
-Walker = class({ panel_w=30, panel_h=9 })
+bgval=1
+Walker = class({ panel_w=30, max_x=30, panel_h=9 })
 
 function Walker:init(dx, dy, r, g, b, args)
     -- optional prameters:
@@ -24,8 +24,9 @@ function Walker:init(dx, dy, r, g, b, args)
     -- ybounce=false wraps top and bottom
     
     if type(args) == 'table' then
-      self.xbounce, self.ybounce = args.xbounce, args.ybounce
-      startx, starty = args.startx, args.starty
+      for key,val in pairs(args) do
+          self[key] = val
+      end
     end
     self.dx,self.dy      = dx,dy
     self.x,self.y        = startx or 0, starty or 0
@@ -47,17 +48,17 @@ function Walker:walk(rgb)
     self:advance()
 
     if self.xbounce then
-      if self.x >= self.panel_w-1 then
+      if self.x >= self.max_x-1 then
         self.dx = -self.dx	-- pingpong
-	self.x = 2*self.panel_w-2-self.x
+	self.x = 2*self.max_x-2-self.x
       end
       if self.x < 0 then
         self.dx = -self.dx	-- pingpong
 	self.x = -self.x
       end
     else
-      if self.x >= self.panel_w then self.x = self.x - self.panel_w end
-      if self.x < 0             then self.x = self.x + self.panel_w end
+      if self.x >= self.max_x then self.x = self.x - self.max_x end
+      if self.x < 0              then self.x = self.x + self.max_x end
     end
 
     if self.ybounce then
@@ -206,37 +207,37 @@ r2,g2,b2 = 150,50,0
 r3,g3,b3 = 250,0,0
 
 walkers = {
-  CollidingWalker(0.16,0.10, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.11, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.12, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.13, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.14, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.15, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.16, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.17, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.18, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.16,0.19, 	r1,g1,b1,  { xbounce=true, ybounce=true } ),
+  CollidingWalker(0.16,0.10, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=30 } ),
+  CollidingWalker(0.16,0.11, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=29 } ),
+  CollidingWalker(0.16,0.12, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=28 } ),
+  CollidingWalker(0.16,0.13, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=27 } ),
+  CollidingWalker(0.16,0.14, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=26 } ),
+  CollidingWalker(0.16,0.15, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=25 } ),
+  CollidingWalker(0.16,0.16, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.16,0.17, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.16,0.18, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.16,0.19, 	r1,g1,b1,  { xbounce=true, ybounce=true, max_x=24 } ),
 
-  CollidingWalker(0.15,0.12, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.13, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.14, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.15, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.16, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.17, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.18, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.19, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.15,0.10, 	r2,g2,b2,  { xbounce=true, ybounce=true } ),
+  CollidingWalker(0.15,0.12, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.13, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.14, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.15, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.16, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.17, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.18, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.19, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.15,0.10, 	r2,g2,b2,  { xbounce=true, ybounce=true, max_x=24 } ),
 
-  CollidingWalker(0.11,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.12,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.10,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.13,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.14,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
+  CollidingWalker(0.11,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.12,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.10,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.13,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.14,0.1, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
 
-  CollidingWalker(0.13,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.10,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.12,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true } ),
-  CollidingWalker(0.11,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true } )
+  CollidingWalker(0.13,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.10,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.12,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } ),
+  CollidingWalker(0.11,0.11, 	r3,g3,b3,  { xbounce=true, ybounce=true, max_x=24 } )
 }
 
 CollidingWalker.collide = walkers
@@ -268,6 +269,7 @@ digit    = 1
 morph    = 1
 wait     = 0
 
+ddeg=0
 deg=0
 while true do
   r,g,b = rgb_hue(bgval, deg)
@@ -282,7 +284,9 @@ while true do
     end
   end
 
-  render_digit(dali_digits[digit][morph], data, 24,  0.0, 0.2, 0.0)
+  dlum=0.4
+  dr, dg, _ = xy_pol(0.5*dlum, ddeg)
+  render_digit(dali_digits[digit][morph], data, 24,  dr+0.5*dlum, dg+0.5*dlum, dlum-dr+0.5*dlum)
 
   wait = wait + 1
   if wait > 40 or morph > 1 then
@@ -300,6 +304,9 @@ while true do
 
   deg = deg + .3
   if deg > 360 then deg = deg - 360 end
+  ddeg = ddeg + .11
+  if ddeg > 360 then ddeg = ddeg - 360 end
+
   for _,w in pairs(walkers) do w:walk(data) end
   dev:write(string.char(unpack(data)))
   -- socket.sleep(0.05)

@@ -3,7 +3,7 @@ Hardware
 
 A Carambola2 has the same Atheros AR9331 Chipset as the TL-WR703N or WR3070 Routers.
 Note that while the Carambola2 breakout board has very nice connectors to access *many* GPIO pins, 
-most of the breakout board you bought remains unused: 2x ETH, 2x USB. The line driver 74HTC
+most of the breakout board you bought remains unused: 2x ETH, 2x USB. The line driver 74HTC02 ...
 
 
 Other Options
